@@ -1,6 +1,10 @@
 package confy
 
-import "fmt"
+import (
+	"errors"
+	"flag"
+	"fmt"
+)
 
 type Option func(*options) error
 
@@ -22,18 +26,18 @@ type options struct {
 	order []preference
 }
 
-func Config[T any](config T, suppliedOptions ...Option) (result T, err error) {
+func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []error, err error) {
 
 	o := options{}
 	for _, optFunc := range suppliedOptions {
 		err := optFunc(&o)
 		if err != nil {
-			return result, err
+			return result, nil, err
 		}
 	}
 
 	if len(o.order) == 0 {
-		return result, fmt.Errorf("no configuration sources specified (no options given to Config() )")
+		return result, nil, fmt.Errorf("no configuration sources specified (no options given to Config() )")
 	}
 
 	orderLoadOpts := map[preference]loader[T]{
@@ -55,7 +59,11 @@ func Config[T any](config T, suppliedOptions ...Option) (result T, err error) {
 
 		err := f(o, &result)
 		if err != nil {
-			return result, fmt.Errorf("%s: %s", p, err)
+			if len(o.order) > 1 && !errors.Is(err, flag.ErrHelp) {
+				warnings = append(warnings, err)
+			} else {
+				return result, nil, err
+			}
 		}
 	}
 

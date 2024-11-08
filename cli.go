@@ -2,7 +2,6 @@ package confy
 
 import (
 	"flag"
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -47,9 +46,7 @@ func loadCli[T any](o options, result *T) (err error) {
 	}
 	err = CommandLine.Parse(os.Args[1:])
 	if err != nil {
-		// Think about what to do here TODO
-		log.Println("failed to parse: ", err)
-		return nil
+		return err
 	}
 
 	help := false
@@ -61,6 +58,7 @@ func loadCli[T any](o options, result *T) (err error) {
 
 	if help {
 		CommandLine.PrintDefaults()
+		return flag.ErrHelp
 	}
 
 	return nil
