@@ -10,6 +10,7 @@ import (
 type fieldsData struct {
 	path  []string
 	value reflect.Value
+	tag   reflect.StructTag
 }
 
 func getFields(v interface{}) []fieldsData {
@@ -34,6 +35,7 @@ func getFields(v interface{}) []fieldsData {
 
 	for i := 0; i < t.NumField(); i++ {
 		fieldVal := t.Field(i)
+		fieldTag := typeData.Field(i).Tag
 		fieldName := typeData.Field(i).Name
 
 		if fieldVal.Type().Kind() == reflect.Struct {
@@ -51,6 +53,7 @@ func getFields(v interface{}) []fieldsData {
 					fieldName,
 				},
 				value: fieldVal,
+				tag:   fieldTag,
 			})
 		}
 	}
