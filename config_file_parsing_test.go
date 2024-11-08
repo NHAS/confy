@@ -90,3 +90,21 @@ func TestAutoParser(t *testing.T) {
 		t.Fatalf("%+v", config)
 	}
 }
+
+func TestDuplicateTagDetection(t *testing.T) {
+
+	type duplicates struct {
+		Test  string `confy:"test"`
+		Toast string `confy:"test"`
+	}
+
+	defer func() {
+		if a := recover(); a == nil {
+			// didnt detect a duplicate tag
+			t.Fail()
+		}
+	}()
+
+	LoadConfigFileAuto[duplicates]("testdata/duplicates.json", false)
+
+}

@@ -42,7 +42,7 @@ func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []er
 
 	orderLoadOpts := map[preference]loader[T]{
 		cli:        loadCli[T],
-		env:        nil,
+		env:        loadEnv[T],
 		configFile: loadConfig[T],
 	}
 

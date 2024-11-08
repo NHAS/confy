@@ -303,6 +303,8 @@ func createModifiedArray(t reflect.Type) reflect.Type {
 func createModifiedType(t reflect.Type) reflect.Type {
 	fields := make([]reflect.StructField, t.NumField())
 
+	confyTagsOnThisLevel := map[string]bool{}
+
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		newField := reflect.StructField{
@@ -330,6 +332,11 @@ func createModifiedType(t reflect.Type) reflect.Type {
 			if len(parts) > 0 {
 				fieldMarshallingName = parts[0]
 			}
+
+			if confyTagsOnThisLevel[fieldMarshallingName] {
+				panic(fmt.Sprintf("duplicate confy:\"%s\" found on %s (type %s)", fieldMarshallingName, field.Name, field.Type))
+			}
+			confyTagsOnThisLevel[fieldMarshallingName] = true
 		}
 
 		if fieldMarshallingName != "" {
