@@ -63,7 +63,7 @@ func TestAutoParser(t *testing.T) {
 	s := "present"
 	dummy.SimplePtr = &s
 
-	config, err := LoadConfigAuto[testStruct]("testdata/test.json", false)
+	config, err := LoadConfigFileAuto[testStruct]("testdata/test.json", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestAutoParser(t *testing.T) {
 		t.Fatalf("%+v", config)
 	}
 
-	config, err = LoadConfigAuto[testStruct]("testdata/test.toml", false)
+	config, err = LoadConfigFileAuto[testStruct]("testdata/test.toml", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestAutoParser(t *testing.T) {
 		t.Fatalf("%+v", config)
 	}
 
-	config, err = LoadConfigAuto[testStruct]("testdata/test.yaml", false)
+	config, err = LoadConfigFileAuto[testStruct]("testdata/test.yaml", false)
 	if err != nil {
 		t.Fatal(err)
 	}

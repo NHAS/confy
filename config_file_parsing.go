@@ -23,56 +23,6 @@ var (
 	}
 )
 
-type fieldsData struct {
-	path  []string
-	value reflect.Value
-}
-
-func getFields(v interface{}) []fieldsData {
-	t := reflect.ValueOf(v)
-	typeData := reflect.TypeOf(v)
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-		typeData = typeData.Elem()
-	}
-
-	fields := []fieldsData{}
-
-	if t.Kind() != reflect.Struct {
-		return []fieldsData{
-			{
-				path:  []string{typeData.Name()},
-				value: t,
-			},
-		}
-	}
-
-	for i := 0; i < t.NumField(); i++ {
-		fieldVal := t.Field(i)
-		fieldName := typeData.Field(i).Name
-
-		if fieldVal.Type().Kind() == reflect.Struct {
-			subFields := getFields(fieldVal.Interface())
-			for _, value := range subFields {
-
-				currentFieldPath := value
-				currentFieldPath.path = append([]string{fieldName}, value.path...)
-
-				fields = append(fields, currentFieldPath)
-			}
-		} else {
-			fields = append(fields, fieldsData{
-				path: []string{
-					fieldName,
-				},
-				value: fieldVal,
-			})
-		}
-	}
-	return fields
-}
-
 func setStruct(targetStruct, value reflect.Value) reflect.Value {
 	newStruct := reflect.New(targetStruct.Type()).Elem()
 
@@ -221,50 +171,67 @@ type configDecoder interface {
 	Decode(v any) (err error)
 }
 
-func LoadConfigAuto[T any](path string, strict bool) (result T, err error) {
-	return LoadConfig[T](path, strict, Auto)
+func LoadConfigFileAuto[T any](path string, strict bool) (result T, err error) {
+	return LoadConfigFile[T](path, strict, Auto)
 }
 
-func LoadConfig[T any](path string, strict bool, configType ConfigType) (result T, err error) {
+func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (result T, err error) {
+
+	err = loadConfig(options{
+		config: struct {
+			strictParsing bool
+			path          string
+			fileType      ConfigType
+		}{
+			strictParsing: strict,
+			path:          path,
+			fileType:      configType,
+		},
+	}, &result)
+
+	return
+}
+
+func loadConfig[T any](o options, result *T) (err error) {
 	clone, err := cloneWithNewTags(result)
 	if err != nil {
-		return *new(T), err
+		return err
 	}
 
-	if configType == Auto {
-		ext := strings.ToLower(filepath.Ext(path))
+	if o.config.fileType == Auto {
+		ext := strings.ToLower(filepath.Ext(o.config.path))
 		switch ext {
 		case ".yml", ".yaml":
-			configType = Yaml
+			o.config.fileType = Yaml
 		case ".json", ".js":
-			configType = Json
+			o.config.fileType = Json
 		case ".toml", ".tml":
-			configType = Toml
+			o.config.fileType = Toml
 		default:
-			return result, fmt.Errorf("unsupported extension %q", strings.ToLower(filepath.Ext(path)))
+			return fmt.Errorf("unsupported file extension %q", strings.ToLower(filepath.Ext(o.config.path)))
 		}
 	}
 
-	configFile, err := os.Open(path)
+	configFile, err := os.Open(o.config.path)
 	if err != nil {
-		return result, fmt.Errorf("failed to open config file %q, err: %s", path, err)
+		return fmt.Errorf("failed to open config file %q, err: %s", o.config.path, err)
 	}
 
 	var decoder configDecoder
-	switch configType {
+	switch o.config.fileType {
 	case Json:
 		jsDec := json.NewDecoder(configFile)
-		if strict {
+		if o.config.strictParsing {
 			jsDec.DisallowUnknownFields()
 		}
 		decoder = jsDec
 	case Yaml:
 		ymDec := yaml.NewDecoder(configFile)
-		ymDec.KnownFields(strict)
+		ymDec.KnownFields(o.config.strictParsing)
 		decoder = ymDec
 	case Toml:
 		tmlDec := toml.NewDecoder(configFile)
-		if strict {
+		if o.config.strictParsing {
 			tmlDec = tmlDec.DisallowUnknownFields()
 		}
 		decoder = tmlDec
@@ -272,16 +239,16 @@ func LoadConfig[T any](path string, strict bool, configType ConfigType) (result 
 
 	err = decoder.Decode(clone)
 	if err != nil {
-		return result, fmt.Errorf("failed to decode config: %s", err)
+		return fmt.Errorf("failed to decode config: %s", err)
 	}
 
 	fields := getFields(clone)
 
 	for _, value := range fields {
-		setField(&result, value.path, value.value)
+		setField(result, value.path, value.value)
 	}
 
-	return result, nil
+	return nil
 }
 
 // CloneWithNewTags creates a new struct with modified tags, leaves it blank
