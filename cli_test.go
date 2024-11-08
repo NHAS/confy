@@ -8,7 +8,7 @@ import (
 func TestCliBasicTypes(t *testing.T) {
 
 	var dummyConfig testStruct
-	os.Args = []string{"dummyprogramname", "-b_bool", "-thing", "helloworld"}
+	os.Args = []string{"dummyprogramname", "-confy-help"}
 
 	err := loadCli(options{
 		cli: struct{ delimiter string }{
@@ -26,5 +26,7 @@ func TestCliBasicTypes(t *testing.T) {
 	if dummyConfig.Thing != "helloworld" {
 		t.Fatalf("%q", dummyConfig.Thing)
 	}
+
+	t.Fatal()
 
 }

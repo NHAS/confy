@@ -35,10 +35,16 @@ func getFields(v interface{}) []fieldsData {
 
 	for i := 0; i < t.NumField(); i++ {
 		fieldVal := t.Field(i)
+
 		fieldTag := typeData.Field(i).Tag
 		fieldName := typeData.Field(i).Name
 
 		if fieldVal.Type().Kind() == reflect.Struct {
+
+			if fieldVal.CanAddr() {
+				fieldVal = fieldVal.Addr()
+			}
+
 			subFields := getFields(fieldVal.Interface())
 			for _, value := range subFields {
 
@@ -58,6 +64,25 @@ func getFields(v interface{}) []fieldsData {
 		}
 	}
 	return fields
+}
+
+func getField(v interface{}, fieldPath []string) (reflect.Value, reflect.StructField) {
+	r := reflect.ValueOf(v).Elem()
+	t := reflect.TypeOf(v).Elem()
+
+	for i, part := range fieldPath {
+		if i == len(fieldPath)-1 {
+			f := r.FieldByName(part)
+			ft, _ := t.FieldByName(part)
+			if f.IsValid() {
+				return f, ft
+			}
+		} else {
+			r = r.FieldByName(part)
+		}
+	}
+
+	return reflect.Value{}, reflect.StructField{}
 }
 
 func setBasicField(v interface{}, fieldPath string, value string) {
