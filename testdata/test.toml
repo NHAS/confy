@@ -1,3 +1,4 @@
+simple_ptr = "present"
 thing = "example_string"
 i_int = 42
 b_bool = true
@@ -12,6 +13,13 @@ Mff = "first_inner"
 
 [[array_complex]]
 Mff = "second_inner"
+
+[complex_ptr]
+Thing = "ptr_test"
+
+[complex_ptr.I]
+Mff = "very_complex_ptr_inner"
+Oorg = 5
 
 [[array_very_complex]]
 Thing = "test"

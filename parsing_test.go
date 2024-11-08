@@ -24,6 +24,8 @@ type testStruct struct {
 
 	Ahhh []innerStruct `confy:"array_complex"`
 
+	SimplePtr *string `confy:"simple_ptr"`
+
 	VeryAhh []innerStructWithNest `confy:"array_very_complex"`
 }
 
@@ -57,6 +59,9 @@ var dummy = testStruct{
 }
 
 func TestAutoParser(t *testing.T) {
+
+	s := "present"
+	dummy.SimplePtr = &s
 
 	config, err := LoadConfigAuto[testStruct]("testdata/test.json", false)
 	if err != nil {

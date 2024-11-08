@@ -1,7 +1,15 @@
 {
+  "simple_ptr": "present",
   "thonku_complex": {
     "Mff": "inner_string",
     "Oorg": 3
+  },
+  "complex_ptr": {
+    "Thing":"ptr_test",
+    "I": {
+      "Mff":  "very_complex_ptr_inner",
+      "Oorg": 5
+    }
   },
   "thing": "example_string",
     "i_int": 42,
