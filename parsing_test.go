@@ -1,10 +1,14 @@
 package confy
 
 import (
-	"log"
 	"reflect"
 	"testing"
 )
+
+type innerStructWithNest struct {
+	Thing string
+	I     innerStruct
+}
 
 type innerStruct struct {
 	Mff  string
@@ -19,6 +23,8 @@ type testStruct struct {
 	Things []string    `confy:"things_array"`
 
 	Ahhh []innerStruct `confy:"array_complex"`
+
+	VeryAhh []innerStructWithNest `confy:"array_very_complex"`
 }
 
 var dummy = testStruct{
@@ -39,18 +45,43 @@ var dummy = testStruct{
 			Mff: "second_inner",
 		},
 	},
+	VeryAhh: []innerStructWithNest{
+		{
+			Thing: "test",
+			I: innerStruct{
+				Mff:  "very_complex_inner",
+				Oorg: 2,
+			},
+		},
+	},
 }
 
-func TestParser(t *testing.T) {
+func TestAutoParser(t *testing.T) {
 
-	config, err := LoadConfigAuto[testStruct]("testdata/test.yaml", false)
+	config, err := LoadConfigAuto[testStruct]("testdata/test.json", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if !reflect.DeepEqual(config, dummy) {
-		log.Printf("%+v", config)
-		t.Fatal()
+		t.Fatalf("%+v", config)
 	}
 
+	config, err = LoadConfigAuto[testStruct]("testdata/test.toml", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(config, dummy) {
+		t.Fatalf("%+v", config)
+	}
+
+	config, err = LoadConfigAuto[testStruct]("testdata/test.yaml", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(config, dummy) {
+		t.Fatalf("%+v", config)
+	}
 }

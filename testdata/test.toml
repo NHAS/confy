@@ -12,3 +12,10 @@ Mff = "first_inner"
 
 [[array_complex]]
 Mff = "second_inner"
+
+[[array_very_complex]]
+Thing = "test"
+
+[array_very_complex.I]
+Mff = "very_complex_inner"
+Oorg = 2

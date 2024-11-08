@@ -15,5 +15,14 @@
       {
         "Mff": "second_inner"
       }
+    ],
+    "array_very_complex": [
+      {
+        "Thing":"test",
+        "I": {
+          "Mff":  "very_complex_inner",
+          "Oorg": 2
+        }
+      }
     ]
   }

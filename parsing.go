@@ -73,6 +73,73 @@ func getFields(v interface{}) []fieldsData {
 	return fields
 }
 
+func setStruct(targetStruct, value reflect.Value) reflect.Value {
+	newStruct := reflect.New(targetStruct.Type()).Elem()
+
+	// Copy fields from elem to newElem
+	for k := 0; k < value.NumField(); k++ {
+		currentField := newStruct.Field(k)
+
+		if currentField.Kind() == reflect.Array || currentField.Kind() == reflect.Slice {
+			currentField.Set(setArray(currentField, value.Field(k)))
+			continue
+		}
+
+		if currentField.Kind() == reflect.Struct {
+			currentField.Set(setStruct(currentField, value.Field(k)))
+			continue
+		}
+
+		currentField.Set(value.Field(k))
+	}
+
+	return newStruct
+}
+
+func setArray(targetArray, values reflect.Value) reflect.Value {
+
+	var result reflect.Value
+	if targetArray.Type().Kind() == reflect.Slice {
+		result = reflect.MakeSlice(targetArray.Type(), values.Len(), values.Cap())
+	} else if targetArray.Type().Kind() == reflect.Array {
+		result = reflect.New(targetArray.Type()).Elem()
+	}
+
+	for j := 0; j < values.Len(); j++ {
+		existingElement := values.Index(j)
+
+		if existingElement.Kind() == reflect.Struct {
+
+			newElem := reflect.New(targetArray.Type().Elem()).Elem()
+			log.Println(newElem.Type())
+
+			// Copy fields from elem to newElem
+			for k := 0; k < existingElement.NumField(); k++ {
+				currentField := newElem.Field(k)
+
+				if currentField.Kind() == reflect.Array || currentField.Kind() == reflect.Slice {
+					currentField.Set(setArray(currentField, existingElement.Field(k)))
+					continue
+				}
+
+				if currentField.Kind() == reflect.Struct {
+					currentField.Set(setStruct(currentField, existingElement.Field(k)))
+					continue
+				}
+
+				currentField.Set(existingElement.Field(k))
+			}
+
+			result.Index(j).Set(newElem)
+		} else {
+			// Directly copy non-complex types
+			result.Index(j).Set(existingElement)
+		}
+	}
+
+	return result
+}
+
 func setField(v interface{}, fieldPath []string, value reflect.Value) {
 	r := reflect.ValueOf(v).Elem()
 
@@ -80,7 +147,13 @@ func setField(v interface{}, fieldPath []string, value reflect.Value) {
 		if i == len(fieldPath)-1 {
 			f := r.FieldByName(part)
 			if f.IsValid() && f.CanAddr() {
-				f.Set(value)
+				if f.Type().Kind() != reflect.Array && f.Type().Kind() != reflect.Slice {
+					f.Set(value)
+				} else {
+					// Due to the yaml parser being incredibly dumb, we have had to recursively go in to every struct
+					// and make sure it has a yaml tag if the type is complex
+					f.Set(setArray(f, value))
+				}
 			} else {
 
 				if !f.IsValid() {
@@ -202,44 +275,13 @@ func LoadConfig[T any](path string, strict bool, configType ConfigType) (result 
 		return result, fmt.Errorf("failed to decode config: %s", err)
 	}
 
-	PrettyPrintStruct(clone)
-
 	fields := getFields(clone)
 
 	for _, value := range fields {
-
-		log.Println(value.path, value.value.Interface())
 		setField(&result, value.path, value.value)
 	}
 
 	return result, nil
-}
-
-func PrettyPrintStruct(s interface{}) {
-	v := reflect.ValueOf(s)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	t := v.Type()
-
-	// Ensure we're working with a struct
-	if t.Kind() != reflect.Struct {
-		fmt.Println("Provided value is not a struct: ", t.Kind())
-		return
-	}
-
-	for i := 0; i < v.NumField(); i++ {
-		field := t.Field(i)
-		value := v.Field(i)
-
-		// Get tag if exists
-		tag := field.Tag
-		if tag != "" {
-			fmt.Printf("%s (tag: %s) = %v\n", field.Name, tag, value)
-		} else {
-			fmt.Printf("%s = %v\n", field.Name, value)
-		}
-	}
 }
 
 // CloneWithNewTags creates a new struct with modified tags, leaves it blank
@@ -261,6 +303,36 @@ func cloneWithNewTags(v interface{}) (interface{}, error) {
 	return newValue.Interface(), nil
 }
 
+func createModifiedArray(t reflect.Type) reflect.Type {
+	switch t.Kind() {
+	case reflect.Array:
+		// Modify the element type of the array, handling nested structs and arrays recursively
+		elemType := t.Elem()
+		if elemType.Kind() == reflect.Struct {
+			elemType = createModifiedType(elemType) // Modify nested structs
+		} else if elemType.Kind() == reflect.Array || elemType.Kind() == reflect.Slice {
+			elemType = createModifiedArray(elemType) // Handle nested arrays or slices
+		}
+		// Return a new array type with the modified element type
+		return reflect.ArrayOf(t.Len(), elemType)
+
+	case reflect.Slice:
+		// Modify the element type of the slice
+		elemType := t.Elem()
+		if elemType.Kind() == reflect.Struct {
+			elemType = createModifiedType(elemType) // Modify nested structs
+		} else if elemType.Kind() == reflect.Array || elemType.Kind() == reflect.Slice {
+			elemType = createModifiedArray(elemType) // Handle nested arrays or slices
+		}
+		// Return a new slice type with the modified element type
+		return reflect.SliceOf(elemType)
+
+	default:
+		// If not an array or slice, return the type unchanged
+		return t
+	}
+}
+
 func createModifiedType(t reflect.Type) reflect.Type {
 	fields := make([]reflect.StructField, t.NumField())
 
@@ -277,6 +349,8 @@ func createModifiedType(t reflect.Type) reflect.Type {
 		// Handle nested structs
 		if field.Type.Kind() == reflect.Struct {
 			newField.Type = createModifiedType(field.Type)
+		} else if field.Type.Kind() == reflect.Array || field.Type.Kind() == reflect.Slice {
+			newField.Type = createModifiedArray(field.Type)
 		}
 
 		existingTagNames := getAllTagNames(field.Tag)
@@ -295,6 +369,11 @@ func createModifiedType(t reflect.Type) reflect.Type {
 			for _, supportedTag := range supportedTags {
 				confyTagNames[supportedTag] = fieldMarshallingName
 			}
+		} else {
+
+			// because the go-yaml parser only maps things automatically if they're lower case, add this
+			// to match other parsers
+			confyTagNames["yaml"] = field.Name
 		}
 
 		alreadySetTags := map[string]bool{}
