@@ -1,0 +1,15 @@
+thonku_complex:
+  Mff: "inner_string"
+  Oorg: 3
+thing: "example_string"
+i_int: 42
+b_bool: true
+things_array:
+  - "string1"
+  - "string2"
+  - "string3"
+array_complex:
+  - Mff: "first_inner"
+    Oorg: 0
+  - Mff: "second_inner"
+    Oorg: 0
