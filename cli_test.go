@@ -12,11 +12,11 @@ func TestCliBasicTypes(t *testing.T) {
 	var dummyConfig testStruct
 	os.Args = []string{"dummyprogramname", "-thing", "helloworld", "-b_bool", "-thonku_complex.Mff", "toaster"}
 
-	err := loadCli(options{
+	err := newCliLoader[testStruct](&options{
 		cli: struct{ delimiter string }{
 			delimiter: ".",
 		},
-	}, &dummyConfig)
+	}).apply(&dummyConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,11 +71,15 @@ func TestCliComplexTypes(t *testing.T) {
 		"-complex_array", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	err := loadCli(options{
+	err := newCliLoader[testCliStruct](&options{
 		cli: struct{ delimiter string }{
 			delimiter: ".",
 		},
-	}, &dummyConfig)
+	}).apply(&dummyConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if err != nil {
 		t.Fatal(err)
 	}

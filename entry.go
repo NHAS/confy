@@ -3,7 +3,9 @@ package confy
 import (
 	"errors"
 	"flag"
-	"fmt"
+	"log/slog"
+	"math"
+	"os"
 )
 
 type Option func(*options) error
@@ -23,12 +25,25 @@ type options struct {
 		delimiter string
 	}
 
+	level  *slog.LevelVar
+	logger *slog.Logger
+
 	order []preference
 }
 
 func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []error, err error) {
 
-	o := options{}
+	o := options{
+		level: new(slog.LevelVar),
+	}
+
+	// disable logging by default
+	o.level.Set(math.MaxInt)
+
+	o.logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: o.level,
+	}))
+
 	for _, optFunc := range suppliedOptions {
 		err := optFunc(&o)
 		if err != nil {
@@ -37,14 +52,18 @@ func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []er
 	}
 
 	if len(o.order) == 0 {
-		return result, nil, fmt.Errorf("no configuration sources specified (no options given to Config() )")
+		if err := Defaults("config.json")(&o); err != nil {
+			return result, nil, err
+		}
 	}
 
 	orderLoadOpts := map[preference]loader[T]{
-		cli:        loadCli[T],
-		env:        loadEnv[T],
-		configFile: loadConfig[T],
+		cli:        newCliLoader[T](&o),
+		env:        newEnvLoader[T](&o),
+		configFile: newConfigLoader[T](&o),
 	}
+
+	o.logger.Info("Populating configuration in this order: ", slog.Any("order", o.order))
 
 	for _, p := range o.order {
 
@@ -53,11 +72,14 @@ func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []er
 			panic("unknown preference option: " + p)
 		}
 
-		err := f(o, &result)
+		err := f.apply(&result)
 		if err != nil {
 			if len(o.order) > 1 && !errors.Is(err, flag.ErrHelp) {
+				o.logger.Warn("parser issued warning", "parser", p, "err", err.Error())
+
 				warnings = append(warnings, err)
 			} else {
+				o.logger.Error("parser issued error", "parser", p, "err", err.Error())
 				return result, nil, err
 			}
 		}
@@ -66,12 +88,21 @@ func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []er
 	return
 }
 
+func WithLogLevel(level slog.Level) Option {
+	return func(c *options) error {
+		c.level.Set(level)
+		return nil
+	}
+}
+
 func Defaults(path string) Option {
 	return func(c *options) error {
 
 		FromCli(".")(c)
 		FromEnvs("_")(c)
 		FromConfigFile(path, false, Auto)(c)
+
+		WithLogLevel(slog.LevelError)
 
 		return nil
 	}

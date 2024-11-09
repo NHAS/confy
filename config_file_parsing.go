@@ -13,15 +13,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	supportedTags = []string{
-		"json",
-		"yaml",
-		"toml",
-	}
-)
+type configParser[T any] struct {
+	o             *options
+	supportedTags []string
+}
 
-func setStruct(targetStruct, value reflect.Value) reflect.Value {
+func (cp *configParser[T]) setStruct(targetStruct, value reflect.Value) reflect.Value {
 	newStruct := reflect.New(targetStruct.Type()).Elem()
 
 	// Copy fields from elem to newElem
@@ -29,12 +26,12 @@ func setStruct(targetStruct, value reflect.Value) reflect.Value {
 		currentField := newStruct.Field(k)
 
 		if currentField.Kind() == reflect.Array || currentField.Kind() == reflect.Slice {
-			currentField.Set(setArray(currentField, value.Field(k)))
+			currentField.Set(cp.setArray(currentField, value.Field(k)))
 			continue
 		}
 
 		if currentField.Kind() == reflect.Struct {
-			currentField.Set(setStruct(currentField, value.Field(k)))
+			currentField.Set(cp.setStruct(currentField, value.Field(k)))
 			continue
 		}
 
@@ -44,7 +41,7 @@ func setStruct(targetStruct, value reflect.Value) reflect.Value {
 	return newStruct
 }
 
-func setArray(targetArray, values reflect.Value) reflect.Value {
+func (cp *configParser[T]) setArray(targetArray, values reflect.Value) reflect.Value {
 
 	var result reflect.Value
 	if targetArray.Type().Kind() == reflect.Slice {
@@ -66,12 +63,12 @@ func setArray(targetArray, values reflect.Value) reflect.Value {
 				currentField := newElem.Field(k)
 
 				if currentField.Kind() == reflect.Array || currentField.Kind() == reflect.Slice {
-					currentField.Set(setArray(currentField, existingElement.Field(k)))
+					currentField.Set(cp.setArray(currentField, existingElement.Field(k)))
 					continue
 				}
 
 				if currentField.Kind() == reflect.Struct {
-					currentField.Set(setStruct(currentField, existingElement.Field(k)))
+					currentField.Set(cp.setStruct(currentField, existingElement.Field(k)))
 					continue
 				}
 
@@ -88,7 +85,7 @@ func setArray(targetArray, values reflect.Value) reflect.Value {
 	return result
 }
 
-func setField(v interface{}, fieldPath []string, value reflect.Value) {
+func (cp *configParser[T]) setField(v interface{}, fieldPath []string, value reflect.Value) {
 	r := reflect.ValueOf(v).Elem()
 
 	for i, part := range fieldPath {
@@ -100,7 +97,7 @@ func setField(v interface{}, fieldPath []string, value reflect.Value) {
 				} else {
 					// Due to the yaml parser being incredibly dumb, we have had to recursively go in to every struct
 					// and make sure it has a yaml tag if the type is complex
-					f.Set(setArray(f, value))
+					f.Set(cp.setArray(f, value))
 				}
 			} else {
 
@@ -119,7 +116,7 @@ func setField(v interface{}, fieldPath []string, value reflect.Value) {
 	}
 }
 
-func getAllTagNames(tag reflect.StructTag) (result []string) {
+func (cp *configParser[T]) getAllTagNames(tag reflect.StructTag) (result []string) {
 
 	for tag != "" {
 		// Skip leading space.
@@ -165,17 +162,12 @@ func getAllTagNames(tag reflect.StructTag) (result []string) {
 	return
 }
 
-type configDecoder interface {
-	Decode(v any) (err error)
-}
-
 func LoadConfigFileAuto[T any](path string, strict bool) (result T, err error) {
 	return LoadConfigFile[T](path, strict, Auto)
 }
 
 func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (result T, err error) {
-
-	err = loadConfig(options{
+	err = newConfigLoader[T](&options{
 		config: struct {
 			strictParsing bool
 			path          string
@@ -185,51 +177,72 @@ func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (res
 			path:          path,
 			fileType:      configType,
 		},
-	}, &result)
+	}).apply(&result)
 
 	return
 }
 
-func loadConfig[T any](o options, result *T) (err error) {
-	clone, err := cloneWithNewTags(result)
+func newConfigLoader[T any](o *options) *configParser[T] {
+	return &configParser[T]{
+		o: o,
+		supportedTags: []string{
+			"json",
+			"yaml",
+			"toml",
+		},
+	}
+}
+
+func (cp *configParser[T]) apply(result *T) (err error) {
+	clone, err := cp.cloneWithNewTags(result)
 	if err != nil {
 		return err
 	}
 
-	if o.config.fileType == Auto {
-		ext := strings.ToLower(filepath.Ext(o.config.path))
+	if cp.o.config.fileType == Auto {
+		ext := strings.ToLower(filepath.Ext(cp.o.config.path))
 		switch ext {
 		case ".yml", ".yaml":
-			o.config.fileType = Yaml
+			cp.o.logger.Info("yaml chosen as config type", "file_path", cp.o.config.path)
+
+			cp.o.config.fileType = Yaml
 		case ".json", ".js":
-			o.config.fileType = Json
+			cp.o.logger.Info("json chosen as config type", "file_path", cp.o.config.path)
+
+			cp.o.config.fileType = Json
 		case ".toml", ".tml":
-			o.config.fileType = Toml
+			cp.o.logger.Info("toml chosen as config type", "file_path", cp.o.config.path)
+
+			cp.o.config.fileType = Toml
 		default:
-			return fmt.Errorf("unsupported file extension %q", strings.ToLower(filepath.Ext(o.config.path)))
+			return fmt.Errorf("unsupported file extension %q", strings.ToLower(filepath.Ext(cp.o.config.path)))
 		}
 	}
 
-	configFile, err := os.Open(o.config.path)
+	configFile, err := os.Open(cp.o.config.path)
 	if err != nil {
-		return fmt.Errorf("failed to open config file %q, err: %s", o.config.path, err)
+		return fmt.Errorf("failed to open config file %q, err: %s", cp.o.config.path, err)
+	}
+
+	type configDecoder interface {
+		Decode(v any) (err error)
 	}
 
 	var decoder configDecoder
-	switch o.config.fileType {
+	switch cp.o.config.fileType {
 	case Json:
 		jsDec := json.NewDecoder(configFile)
-		if o.config.strictParsing {
+		if cp.o.config.strictParsing {
 			jsDec.DisallowUnknownFields()
 		}
 		decoder = jsDec
 	case Yaml:
 		ymDec := yaml.NewDecoder(configFile)
-		ymDec.KnownFields(o.config.strictParsing)
+		ymDec.KnownFields(cp.o.config.strictParsing)
 		decoder = ymDec
 	case Toml:
 		tmlDec := toml.NewDecoder(configFile)
-		if o.config.strictParsing {
+		if cp.o.config.strictParsing {
 			tmlDec = tmlDec.DisallowUnknownFields()
 		}
 		decoder = tmlDec
@@ -243,24 +256,27 @@ func loadConfig[T any](o options, result *T) (err error) {
 	fields := getFields(false, clone)
 
 	for _, value := range fields {
-		setField(result, value.path, value.value)
+		cp.o.logger.Info("setting field of config file", "path", strings.Join(value.path, "."), "value", value.value.String(), "tag", value.tag)
+
+		cp.setField(result, value.path, value.value)
 	}
 
 	return nil
 }
 
 // CloneWithNewTags creates a new struct with modified tags, leaves it blank
-func cloneWithNewTags(v interface{}) (interface{}, error) {
+func (cp *configParser[T]) cloneWithNewTags(v interface{}) (interface{}, error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
+
 	if val.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("input config was not struct")
 	}
 
 	// Create new struct type with modified tags
-	newType := createModifiedType(val.Type())
+	newType := cp.createModifiedType(val.Type())
 
 	// Create new struct instance
 	newValue := reflect.New(newType)
@@ -268,15 +284,15 @@ func cloneWithNewTags(v interface{}) (interface{}, error) {
 	return newValue.Interface(), nil
 }
 
-func createModifiedArray(t reflect.Type) reflect.Type {
+func (cp *configParser[T]) createModifiedArray(t reflect.Type) reflect.Type {
 	switch t.Kind() {
 	case reflect.Array:
 		// Modify the element type of the array, handling nested structs and arrays recursively
 		elemType := t.Elem()
 		if elemType.Kind() == reflect.Struct {
-			elemType = createModifiedType(elemType) // Modify nested structs
+			elemType = cp.createModifiedType(elemType) // Modify nested structs
 		} else if elemType.Kind() == reflect.Array || elemType.Kind() == reflect.Slice {
-			elemType = createModifiedArray(elemType) // Handle nested arrays or slices
+			elemType = cp.createModifiedArray(elemType) // Handle nested arrays or slices
 		}
 		// Return a new array type with the modified element type
 		return reflect.ArrayOf(t.Len(), elemType)
@@ -285,9 +301,9 @@ func createModifiedArray(t reflect.Type) reflect.Type {
 		// Modify the element type of the slice
 		elemType := t.Elem()
 		if elemType.Kind() == reflect.Struct {
-			elemType = createModifiedType(elemType) // Modify nested structs
+			elemType = cp.createModifiedType(elemType) // Modify nested structs
 		} else if elemType.Kind() == reflect.Array || elemType.Kind() == reflect.Slice {
-			elemType = createModifiedArray(elemType) // Handle nested arrays or slices
+			elemType = cp.createModifiedArray(elemType) // Handle nested arrays or slices
 		}
 		// Return a new slice type with the modified element type
 		return reflect.SliceOf(elemType)
@@ -298,13 +314,14 @@ func createModifiedArray(t reflect.Type) reflect.Type {
 	}
 }
 
-func createModifiedType(t reflect.Type) reflect.Type {
+func (cp *configParser[T]) createModifiedType(t reflect.Type) reflect.Type {
 	fields := make([]reflect.StructField, t.NumField())
 
 	confyTagsOnThisLevel := map[string]bool{}
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
+
 		newField := reflect.StructField{
 			Name:      field.Name,
 			Type:      field.Type,
@@ -313,14 +330,16 @@ func createModifiedType(t reflect.Type) reflect.Type {
 			PkgPath:   field.PkgPath,
 		}
 
+		cp.o.logger.Info("cloning struct fields", "struct", t.Name(), "field", field.Name, "type", field.Type.Kind())
+
 		// Handle nested structs
 		if field.Type.Kind() == reflect.Struct {
-			newField.Type = createModifiedType(field.Type)
+			newField.Type = cp.createModifiedType(field.Type)
 		} else if field.Type.Kind() == reflect.Array || field.Type.Kind() == reflect.Slice {
-			newField.Type = createModifiedArray(field.Type)
+			newField.Type = cp.createModifiedArray(field.Type)
 		}
 
-		existingTagNames := getAllTagNames(field.Tag)
+		existingTagNames := cp.getAllTagNames(field.Tag)
 		confyTagNames := map[string]string{}
 
 		var fieldMarshallingName string
@@ -331,14 +350,18 @@ func createModifiedType(t reflect.Type) reflect.Type {
 				fieldMarshallingName = parts[0]
 			}
 
+			cp.o.logger.Info("field had 'confy:' tag", "struct", t.Name(), "field", field.Name, "tag_value", confyInstruction)
+
 			if confyTagsOnThisLevel[fieldMarshallingName] {
 				panic(fmt.Sprintf("duplicate confy:\"%s\" found on %s (type %s)", fieldMarshallingName, field.Name, field.Type))
 			}
 			confyTagsOnThisLevel[fieldMarshallingName] = true
+		} else {
+			cp.o.logger.Info("field had NO 'confy:' tag", "struct", t.Name(), "field", field.Name, "all_tags", field.Tag)
 		}
 
 		if fieldMarshallingName != "" {
-			for _, supportedTag := range supportedTags {
+			for _, supportedTag := range cp.supportedTags {
 				confyTagNames[supportedTag] = fieldMarshallingName
 			}
 		} else {
@@ -354,6 +377,7 @@ func createModifiedType(t reflect.Type) reflect.Type {
 			// Preserve existing tags
 			value, ok := field.Tag.Lookup(tagName)
 			if !ok {
+				cp.o.logger.Warn("could not preserve existing tag", "tag_name", tagName, "all_tags", field.Tag)
 				continue
 			}
 
@@ -365,6 +389,7 @@ func createModifiedType(t reflect.Type) reflect.Type {
 
 		for confyTagName, confyTagValue := range confyTagNames {
 			if alreadySetTags[confyTagName] {
+				cp.o.logger.Warn("not adding auto generated tag as already exists", "tag_name", confyTagName, "existing_value", field.Tag.Get(confyTagName))
 				continue
 			}
 			tagsToSet = append(tagsToSet, fmt.Sprintf("%s:\"%s\"", confyTagName, confyTagValue))

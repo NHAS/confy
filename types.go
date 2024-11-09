@@ -1,5 +1,9 @@
 package confy
 
+type loader[T any] interface {
+	apply(current *T) error
+}
+
 type ConfigType string
 
 const (
@@ -16,8 +20,6 @@ const (
 	env        preference = "Env"
 	configFile preference = "file"
 )
-
-type loader[T any] func(o options, current *T) error
 
 const (
 	confyTag            = "confy"
