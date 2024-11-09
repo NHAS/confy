@@ -74,15 +74,15 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Loaded config: %+v\n", loadedConfig)
+	fmt.Printf("Loaded JSON config: %+v\n", loadedConfig)
 
-    yamlLoadedConfig, _, err := confy.Config[Config](confy.Defaults("config.json"))
+    yamlLoadedConfig, _, err := confy.Config[Config](confy.Defaults("config.yaml"))
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		return
 	}
 
-    fmt.Printf("Loaded config: %+v\n", yamlLoadedConfig)
+    fmt.Printf("Loaded YAML config: %+v\n", yamlLoadedConfig)
 
     // They're the same!
 
