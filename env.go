@@ -63,7 +63,7 @@ func (ep *envParser[T]) apply(result *T) (err error) {
 
 		isSensitive := false
 		value, ok := field.tag.Lookup(confyTag)
-		if !ok {
+		if ok {
 			parts := strings.Split(value, ";")
 			if len(parts) > 1 {
 				isSensitive = strings.TrimSpace(parts[1]) == "sensitive"
