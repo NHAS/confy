@@ -34,3 +34,5 @@ const (
 
 	LoggingDisabled = math.MaxInt
 )
+
+type Transform func(generated string) string

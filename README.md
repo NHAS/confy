@@ -180,7 +180,8 @@ Confy offers a variety of options for configuring your application's settings.
 | `FromEnvs(...)` | Load configuration from environment variables. Use the delimiter to denote nested fields. |
 | `FromCli(...)` | Load configuration from CLI flags. Set a delimiter for nested struct parsing. |
 | `WithLogLevel(...)` | Set logging level to control output verbosity. Useful for debugging. |
-
+| `WithCliTransform(...)` | Takes a function to run against the generated CLI flag name, allows you to modify the flag name |
+| `WithEnvTransform(...)` | Takes a function to run against the generated ENV variable name, allows you to modify the ENV name |
 
 ## Notes
 - Complex structures must implement `encoding.TextUnmarshaler` and `encoding.TextMarshaler` for CLI/ENV parsing.

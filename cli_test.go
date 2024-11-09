@@ -15,7 +15,7 @@ func TestCliBasicTypes(t *testing.T) {
 	os.Args = []string{"dummyprogramname", "-thing", "helloworld", "-b_bool", "-thonku_complex.Mff", "toaster"}
 
 	o := &options{
-		cli: struct{ delimiter string }{
+		cli: transientOptions{
 			delimiter: ".",
 		},
 	}
@@ -77,7 +77,7 @@ func TestCliComplexTypes(t *testing.T) {
 	}
 
 	o := &options{
-		cli: struct{ delimiter string }{
+		cli: transientOptions{
 			delimiter: ".",
 		},
 	}
@@ -136,7 +136,7 @@ func TestCliEmptyStringSlice(t *testing.T) {
 		"dummy", "-confy-help",
 	}
 	o := &options{
-		cli: struct{ delimiter string }{
+		cli: transientOptions{
 			delimiter: ".",
 		},
 	}
@@ -160,7 +160,7 @@ func TestCliHelperMethod(t *testing.T) {
 		"dummy",
 	}
 	o := &options{
-		cli: struct{ delimiter string }{
+		cli: transientOptions{
 			delimiter: ".",
 		},
 	}
@@ -184,4 +184,65 @@ func TestCliHelperMethod(t *testing.T) {
 		t.Fatalf("expected %v got %v", expectedContents, vals)
 	}
 
+}
+
+func TestCliTransform(t *testing.T) {
+
+	var dummyConfig testCliStruct
+	os.Args = []string{
+		"dummyprogramname",
+		"-MARSHAL", "test marshalling",
+		"-THONKU_COMPLEX.MFF", "innername:42",
+		"-MY_BOY", "2024-11-09T15:04:05Z", // Example for time.Time
+		"-BASIC_ARRAY", "item1,item2,item3", // Example for BasicArray
+		"-COMPLEX_ARRAY", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
+	}
+
+	o := &options{
+		cli: transientOptions{
+			delimiter: ".",
+			transform: func(generated string) string {
+				return strings.ToUpper(generated)
+			},
+		},
+	}
+	initLogger(o, slog.LevelDebug)
+
+	err := newCliLoader[testCliStruct](o).apply(&dummyConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dummyConfig.ImplementsMarshaller.content != "test marshalling" {
+		t.Errorf("Expected ImplementsMarshaller content 'test marshalling', got '%s'", dummyConfig.ImplementsMarshaller.content)
+	}
+
+	if dummyConfig.Thonku.Mff != "innername:42" {
+		t.Errorf("Expected Thonku Mff innername:42  got %s", dummyConfig.Thonku.Mff)
+	}
+
+	expectedTime := time.Date(2024, time.November, 9, 15, 4, 5, 0, time.UTC)
+	if !dummyConfig.ItsTime.Equal(expectedTime) {
+		t.Errorf("Expected ItsTime to be '%v', got '%v'", expectedTime, dummyConfig.ItsTime)
+	}
+
+	expectedBasicArray := []string{"item1", "item2", "item3"}
+	if !equalStringSlices(dummyConfig.BasicArray, expectedBasicArray) {
+		t.Errorf("Expected BasicArray to be '%v', got '%v'", expectedBasicArray, dummyConfig.BasicArray)
+	}
+
+	expectedComplexArray := []implementsTextUnmarshaler{
+		{content: "text1"},
+		{content: "text2"},
+		{content: "text3"},
+	}
+	for i, v := range dummyConfig.ComplexArray {
+		if v.content != expectedComplexArray[i].content {
+			t.Errorf("Expected ComplexArray[%d] to be '%s', got '%s'", i, expectedComplexArray[i].content, v.content)
+		}
+	}
 }

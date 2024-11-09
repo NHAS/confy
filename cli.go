@@ -224,6 +224,24 @@ func GetGeneratedCliFlags[T any](delimiter string) []string {
 	return result
 }
 
+// GetGeneratedCliFlagsWithTransform return list of auto generated cli flag names that LoadEnv/Config will check
+// it optionally also takes a transform func that you can use to change the flag name
+func GetGeneratedCliFlagsWithTransform[T any](delimiter string, transformFunc Transform) []string {
+	var a T
+	if reflect.TypeOf(a).Kind() != reflect.Struct {
+		panic("GetGeneratedCliFlagsWithTransform(...) only supports configs of Struct type")
+	}
+
+	envs := GetGeneratedCliFlags[T](delimiter)
+	for i := range envs {
+		if transformFunc != nil {
+			envs[i] = transformFunc(envs[i])
+		}
+	}
+
+	return envs
+}
+
 // LoadCli populates a configuration file T from cli arguments
 func LoadCli[T any](delimiter string) (result T, err error) {
 	if reflect.TypeOf(result).Kind() != reflect.Struct {
@@ -231,7 +249,7 @@ func LoadCli[T any](delimiter string) (result T, err error) {
 	}
 
 	o := &options{
-		cli: struct{ delimiter string }{
+		cli: transientOptions{
 			delimiter: delimiter,
 		},
 	}
@@ -282,6 +300,10 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 
 			// if this changes update LoadCli
 			flagName := strings.Join(resolvePath(dummyCopy, field.path), cp.o.cli.delimiter)
+			if cp.o.cli.transform != nil {
+				flagName = cp.o.cli.transform(flagName)
+				cp.o.logger.Info("using transform func on cli flag", "before_func", strings.Join(resolvePath(dummyCopy, field.path), cp.o.cli.delimiter), "after_func", flagName)
+			}
 
 			cp.o.logger.Info("resolved confy path", "resolved_path", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 

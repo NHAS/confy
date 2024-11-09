@@ -25,7 +25,7 @@ func LoadEnv[T any](delimiter string) (result T, err error) {
 	}
 
 	o := &options{
-		env: struct{ delimiter string }{
+		env: transientOptions{
 			delimiter: delimiter,
 		},
 	}
@@ -52,11 +52,34 @@ func GetGeneratedEnv[T any](delimiter string) []string {
 	return result
 }
 
+// GetGeneratedEnvWithTransform return list of auto generated environment variable names that LoadEnv/Config will check
+// it optionally also takes a transform func that you can use to change the env name
+func GetGeneratedEnvWithTransform[T any](delimiter string, transformFunc Transform) []string {
+	var a T
+	if reflect.TypeOf(a).Kind() != reflect.Struct {
+		panic("GetGeneratedEnvWithTransform(...) only supports configs of Struct type")
+	}
+
+	envs := GetGeneratedEnv[T](delimiter)
+	for i := range envs {
+		if transformFunc != nil {
+			envs[i] = transformFunc(envs[i])
+		}
+	}
+
+	return envs
+}
+
 func (ep *envParser[T]) apply(result *T) (err error) {
 
 	for _, field := range getFields(true, result) {
 		// Update GetGeneratedEnv if this changes
 		envVariable := strings.Join(resolvePath(result, field.path), ep.o.env.delimiter)
+		if ep.o.env.transform != nil {
+			envVariable = ep.o.env.transform(envVariable)
+			ep.o.logger.Info("using transform func on env variable", "before_func", strings.Join(resolvePath(result, field.path), ep.o.env.delimiter), "after_func", envVariable)
+		}
+
 		envVarValue := os.Getenv(envVariable)
 
 		printedValue := envVarValue

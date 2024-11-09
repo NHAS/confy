@@ -17,16 +17,16 @@ type configDataOptions struct {
 	fileType      ConfigType
 }
 
+type transientOptions struct {
+	delimiter string
+	transform Transform
+}
+
 type options struct {
 	config configDataOptions
 
-	cli struct {
-		delimiter string
-	}
-
-	env struct {
-		delimiter string
-	}
+	cli transientOptions
+	env transientOptions
 
 	level  *slog.LevelVar
 	logger *slog.Logger
@@ -254,6 +254,24 @@ func FromEnvs(delimiter string) option {
 	}
 }
 
+// WithEnvTransform runs the auto generated env through function t(generated string)string
+// allowing you to change the env variable name if required
+//
+// E.g
+//
+//	transformFunc := func(env string)string {
+//	   return strings.ToUpper(env)
+//	}
+//
+// WithCliTransform(transformFunc)
+// results searching for env variables that are all upper case
+func WithEnvTransform(t Transform) option {
+	return func(c *options) error {
+		c.env.transform = t
+		return nil
+	}
+}
+
 // FromCli will automatically look for configuration variables from CLI flags
 // delimiter: string when looking for cli flags this string should be used for denoting nested structures
 // e.g
@@ -276,6 +294,24 @@ func FromCli(delimiter string) option {
 	return func(c *options) error {
 		c.cli.delimiter = delimiter
 		c.order = append(c.order, cli)
+		return nil
+	}
+}
+
+// WithCliTransform runs the auto generated cli flag name through function t(generated string)string
+// allowing you to change the flag name if required
+//
+// E.g
+//
+//	transformFunc := func(flag string)string {
+//	   return strings.ToUpper(flag)
+//	}
+//
+// WithCliTransform(transformFunc)
+// results in cli flag names that are all upper case
+func WithCliTransform(t Transform) option {
+	return func(c *options) error {
+		c.cli.transform = t
 		return nil
 	}
 }
