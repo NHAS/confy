@@ -22,4 +22,4 @@ jobs:
         go-version: '1.23'
 
     - name: Test with the Go CLI
-        run: go test -v
+      run: go test -v
