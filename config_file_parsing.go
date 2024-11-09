@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -167,7 +168,8 @@ func LoadConfigFileAuto[T any](path string, strict bool) (result T, err error) {
 }
 
 func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (result T, err error) {
-	err = newConfigLoader[T](&options{
+
+	o := &options{
 		config: struct {
 			strictParsing bool
 			path          string
@@ -177,7 +179,11 @@ func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (res
 			path:          path,
 			fileType:      configType,
 		},
-	}).apply(&result)
+	}
+
+	initLogger(o, math.MaxInt)
+
+	err = newConfigLoader[T](o).apply(&result)
 
 	return
 }
@@ -198,6 +204,8 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 	if err != nil {
 		return err
 	}
+
+	cp.o.logger.Info(fmt.Sprintf("constructed value (with auto added tags): %#v", clone))
 
 	if cp.o.config.fileType == Auto {
 		ext := strings.ToLower(filepath.Ext(cp.o.config.path))

@@ -1,10 +1,7 @@
 package confy
 
 import (
-	"log"
 	"reflect"
-	"strconv"
-	"strings"
 )
 
 type fieldsData struct {
@@ -99,38 +96,17 @@ func getField(v interface{}, fieldPath []string) (reflect.Value, reflect.StructF
 	return reflect.Value{}, reflect.StructField{}
 }
 
-func setBasicField(v interface{}, fieldPath string, value string) {
-	r := reflect.ValueOf(v).Elem()
-	parts := strings.Split(fieldPath, ".")
+func resolvePath(v interface{}, fieldPath []string) []string {
+	resolvedPath := []string{}
+	for i := range fieldPath {
 
-	for i, part := range parts {
-		if i == len(parts)-1 {
-			f := r.FieldByName(part)
-			if f.IsValid() {
-				switch f.Kind() {
-				case reflect.Bool:
-					f.SetBool(value == "true")
-				case reflect.Slice:
-					f.Set(reflect.ValueOf(strings.Split(value, ",")))
-				case reflect.String:
-					f.SetString(value)
-				case reflect.Int:
-
-					reflectedVal, err := strconv.Atoi(value)
-					if err != nil {
-						log.Println(fieldPath, " should be int, but couldnt be parsed as one: ", err)
-						continue
-					}
-					f.SetInt(int64(reflectedVal))
-
-				default:
-					log.Printf("Unsupported field type for field: %s", fieldPath)
-				}
-			} else {
-				log.Printf("Field not found: %s", fieldPath)
-			}
-		} else {
-			r = r.FieldByName(part)
+		currentPath := fieldPath[i]
+		_, ft := getField(v, fieldPath[:i+1])
+		if value, ok := ft.Tag.Lookup(confyTag); ok {
+			currentPath = value
 		}
+
+		resolvedPath = append(resolvedPath, currentPath)
 	}
+	return resolvedPath
 }

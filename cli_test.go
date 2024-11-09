@@ -1,6 +1,7 @@
 package confy
 
 import (
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -12,11 +13,14 @@ func TestCliBasicTypes(t *testing.T) {
 	var dummyConfig testStruct
 	os.Args = []string{"dummyprogramname", "-thing", "helloworld", "-b_bool", "-thonku_complex.Mff", "toaster"}
 
-	err := newCliLoader[testStruct](&options{
+	o := &options{
 		cli: struct{ delimiter string }{
 			delimiter: ".",
 		},
-	}).apply(&dummyConfig)
+	}
+	initLogger(o, slog.LevelDebug)
+
+	err := newCliLoader[testStruct](o).apply(&dummyConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,11 +75,14 @@ func TestCliComplexTypes(t *testing.T) {
 		"-complex_array", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	err := newCliLoader[testCliStruct](&options{
+	o := &options{
 		cli: struct{ delimiter string }{
 			delimiter: ".",
 		},
-	}).apply(&dummyConfig)
+	}
+	initLogger(o, slog.LevelDebug)
+
+	err := newCliLoader[testCliStruct](o).apply(&dummyConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,16 +119,4 @@ func TestCliComplexTypes(t *testing.T) {
 			t.Errorf("Expected ComplexArray[%d] to be '%s', got '%s'", i, expectedComplexArray[i].content, v.content)
 		}
 	}
-}
-
-func equalStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

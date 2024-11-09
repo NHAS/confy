@@ -70,6 +70,41 @@ func (s *intSlice) Set(value string) error {
 	return nil
 }
 
+type floatSlice struct {
+	target *[]float64
+}
+
+func newFloatSlice(target interface{}) *floatSlice {
+	t, ok := target.(*[]float64)
+	if !ok {
+		panic("could not cast something that was suppose to be a pointer to a float slice")
+	}
+	return &floatSlice{
+		target: t,
+	}
+}
+
+func (s *floatSlice) String() string {
+
+	var result []string
+	for _, i := range *s.target {
+		result = append(result, fmt.Sprintf("%f", i))
+	}
+
+	return strings.Join(result, ",")
+}
+
+func (s *floatSlice) Set(value string) error {
+	for _, potentialFloat := range strings.Split(value, ",") {
+		i, err := strconv.ParseFloat(potentialFloat, 64)
+		if err != nil {
+			return err
+		}
+		*s.target = append(*s.target, i)
+	}
+	return nil
+}
+
 type boolSlice struct {
 	target *[]bool
 }
@@ -162,19 +197,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 				field.value = field.value.Elem()
 			}
 
-			resolvedPath := []string{}
-			for i := range field.path {
-
-				currentPath := field.path[i]
-				_, ft := getField(result, field.path[:i+1])
-				if value, ok := ft.Tag.Lookup(confyTag); ok {
-					currentPath = value
-				}
-
-				resolvedPath = append(resolvedPath, currentPath)
-			}
-
-			flagName := strings.Join(resolvedPath, cp.o.cli.delimiter)
+			flagName := strings.Join(resolvePath(result, field.path), cp.o.cli.delimiter)
 
 			cp.o.logger.Info("resolved confy path", "resolved_path", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 
@@ -193,7 +216,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 					}
 					typeName = pkg + field.value.Type().Name() + " " + typeName
 				}
-				description = fmt.Sprintf("A %s value, %s (%s)", typeName, strings.Join(field.path, cp.o.cli.delimiter), strings.Join(resolvedPath, cp.o.cli.delimiter))
+				description = fmt.Sprintf("A %s value, %s (%s)", typeName, strings.Join(field.path, cp.o.cli.delimiter), flagName)
 			}
 
 			cp.o.logger.Info("adding flag", "flag", "-"+flagName, "type", field.value.Kind())
@@ -215,18 +238,18 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 				switch sliceContentType.Kind() {
 				case reflect.String:
 					parser = newStringSlice(field.value.Addr().Interface())
-				case reflect.Int:
+				case reflect.Int, reflect.Int64:
 					parser = newIntSlice(field.value.Addr().Interface())
+				case reflect.Float64:
+					parser = newFloatSlice(field.value.Addr().Interface())
 				case reflect.Bool:
 					parser = newBoolSlice(field.value.Addr().Interface())
 				default:
-
 					inter := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 					if !reflect.PointerTo(sliceContentType).Implements(inter) {
 						cp.o.logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 						continue
 					}
-
 					parser = newGenericSlice(sliceContentType)
 				}
 
@@ -235,13 +258,13 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 
 				textUnmarshaler, ok := field.value.Addr().Interface().(encoding.TextUnmarshaler)
 				if !ok {
-					cp.o.logger.Warn("structure implement encoding.TextUnmarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
+					cp.o.logger.Warn("structure doesnt implement encoding.TextUnmarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 					continue
 				}
 
 				textMarshaler, ok := field.value.Addr().Interface().(encoding.TextMarshaler)
 				if !ok {
-					cp.o.logger.Warn("structure implement encoding.TextMarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
+					cp.o.logger.Warn("structure doesnt implement encoding.TextMarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 					continue
 				}
 

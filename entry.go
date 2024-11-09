@@ -31,18 +31,22 @@ type options struct {
 	order []preference
 }
 
-func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []error, err error) {
+func initLogger(o *options, initialLevel slog.Level) {
 
-	o := options{
-		level: new(slog.LevelVar),
-	}
+	o.level = new(slog.LevelVar)
 
-	// disable logging by default
-	o.level.Set(math.MaxInt)
+	o.level.Set(initialLevel)
 
 	o.logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: o.level,
 	}))
+}
+
+func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []error, err error) {
+
+	o := options{}
+	// disable logging by default
+	initLogger(&o, math.MaxInt)
 
 	for _, optFunc := range suppliedOptions {
 		err := optFunc(&o)
