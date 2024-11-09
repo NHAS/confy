@@ -28,7 +28,7 @@ func newStringSlice(target interface{}) *stringSlice {
 }
 
 func (s *stringSlice) String() string {
-	if s == nil {
+	if s == nil || s.target == nil {
 		return ""
 	}
 
@@ -36,7 +36,7 @@ func (s *stringSlice) String() string {
 }
 
 func (s *stringSlice) Set(value string) error {
-	if s == nil {
+	if s == nil || s.target == nil {
 		return errors.New("nil")
 	}
 
@@ -59,7 +59,7 @@ func newIntSlice(target interface{}) *intSlice {
 }
 
 func (s *intSlice) String() string {
-	if s == nil {
+	if s == nil || s.target == nil {
 		return ""
 	}
 
@@ -72,7 +72,7 @@ func (s *intSlice) String() string {
 }
 
 func (s *intSlice) Set(value string) error {
-	if s == nil {
+	if s == nil || s.target == nil {
 		return errors.New("nil")
 	}
 
@@ -101,7 +101,7 @@ func newFloatSlice(target interface{}) *floatSlice {
 }
 
 func (s *floatSlice) String() string {
-	if s == nil {
+	if s == nil || s.target == nil {
 		return ""
 	}
 
@@ -114,7 +114,7 @@ func (s *floatSlice) String() string {
 }
 
 func (s *floatSlice) Set(value string) error {
-	if s == nil {
+	if s == nil || s.target == nil {
 		return errors.New("nil")
 	}
 
@@ -143,7 +143,7 @@ func newBoolSlice(target interface{}) *boolSlice {
 }
 
 func (s *boolSlice) String() string {
-	if s == nil {
+	if s == nil || s.target == nil {
 		return ""
 	}
 
@@ -182,6 +182,10 @@ func (s *TextSlice) String() string {
 }
 
 func (s *TextSlice) Set(value string) error {
+	if s == nil {
+		return errors.New("nil")
+	}
+
 	values := strings.Split(value, ",")
 	for _, v := range values {
 

@@ -120,3 +120,30 @@ func TestCliComplexTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestCliEmptyStringSlice(t *testing.T) {
+
+	type lotsOfArrays struct {
+		BasicArrayInt []int    `confy:"aaaaa"`
+		BasicArray    []string `confy:"basic_array"`
+		BasicBool     []bool
+	}
+
+	var lots lotsOfArrays
+
+	os.Args = []string{
+		"dummy", "-confy-help",
+	}
+	o := &options{
+		cli: struct{ delimiter string }{
+			delimiter: ".",
+		},
+	}
+	initLogger(o, slog.LevelDebug)
+
+	err := newCliLoader[lotsOfArrays](o).apply(&lots)
+	if err == nil {
+		t.Fail()
+	}
+
+}
