@@ -96,6 +96,7 @@ func (ep *envParser[T]) setBasicFieldFromString(v interface{}, fieldPath []strin
 
 	flagName := strings.Join(resolvePath(v, fieldPath), ep.o.cli.delimiter)
 
+	isBlank := value == ""
 outer:
 	for i, part := range fieldPath {
 		if i == len(fieldPath)-1 {
@@ -106,6 +107,11 @@ outer:
 				case reflect.String:
 					f.SetString(value)
 				case reflect.Int, reflect.Int64:
+					if isBlank {
+						f.SetInt(0)
+						continue
+					}
+
 					reflectedVal, err := strconv.Atoi(value)
 					if err != nil {
 						ep.o.logger.Error("field should be float", "err", err, "path", flagName)
@@ -114,13 +120,18 @@ outer:
 					f.SetInt(int64(reflectedVal))
 				case reflect.Bool:
 					switch value {
-					case "true", "false":
-						f.SetBool(value == "true")
+					case "true", "false", "":
+						f.SetBool(value == "true" && value != "")
 					default:
 						ep.o.logger.Error("field should be bool", "value", value, "path", flagName)
 						continue
 					}
 				case reflect.Float64:
+					if isBlank {
+						f.SetFloat(0)
+						continue
+					}
+
 					reflectedVal, err := strconv.ParseFloat(value, 64)
 					if err != nil {
 						ep.o.logger.Error("field should be float", "err", err, "path", flagName)
@@ -178,7 +189,6 @@ outer:
 
 						f.Set(reflect.ValueOf(resultingArray))
 					default:
-
 						inter := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 						if !reflect.PointerTo(sliceContentType).Implements(inter) {
 							ep.o.logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "flag", flagName, "path", flagName)
