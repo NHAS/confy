@@ -282,6 +282,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 	type association struct {
 		v    reflect.Value
 		path []string
+		tag  reflect.StructTag
 	}
 
 	flagAssociation := map[string]association{}
@@ -326,7 +327,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 			}
 
 			cp.o.logger.Info("adding flag", "flag", "-"+flagName, "type", field.value.Kind())
-			flagAssociation[flagName] = association{v: field.value, path: field.path}
+			flagAssociation[flagName] = association{v: field.value, path: field.path, tag: field.tag}
 
 			switch field.value.Kind() {
 			case reflect.String:
@@ -405,6 +406,8 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 		v, _ := getField(result, association.path)
 
 		v.Set(association.v)
+
+		cp.o.logger.Info("CLI FLAG", "-"+f.Name, maskSensitive(f.Value.String(), association.tag))
 	})
 
 	if help {

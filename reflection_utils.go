@@ -2,6 +2,7 @@ package confy
 
 import (
 	"reflect"
+	"strings"
 )
 
 type fieldsData struct {
@@ -121,4 +122,24 @@ func equalStringSlices(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func maskSensitive(value string, tag reflect.StructTag) string {
+
+	printedValue := value
+
+	isSensitive := false
+	value, ok := tag.Lookup(confyTag)
+	if ok {
+		parts := strings.Split(value, ";")
+		if len(parts) > 1 {
+			isSensitive = strings.TrimSpace(parts[1]) == "sensitive"
+		}
+	}
+
+	if isSensitive && value != "" {
+		printedValue = "**********"
+	}
+
+	return printedValue
 }

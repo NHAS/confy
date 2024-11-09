@@ -80,27 +80,11 @@ func (ep *envParser[T]) apply(result *T) (err error) {
 			ep.o.logger.Info("using transform func on env variable", "before_func", strings.Join(resolvePath(result, field.path), ep.o.env.delimiter), "after_func", envVariable)
 		}
 
-		envVarValue := os.Getenv(envVariable)
+		value, wasSet := os.LookupEnv(envVariable)
+		ep.o.logger.Info("ENV", "was_set", wasSet, envVariable, maskSensitive(value, field.tag))
 
-		printedValue := envVarValue
-
-		isSensitive := false
-		value, ok := field.tag.Lookup(confyTag)
-		if ok {
-			parts := strings.Split(value, ";")
-			if len(parts) > 1 {
-				isSensitive = strings.TrimSpace(parts[1]) == "sensitive"
-			}
-		}
-
-		if isSensitive && envVarValue != "" {
-			printedValue = "**********"
-		}
-
-		ep.o.logger.Info("ENV", envVariable, printedValue)
-
-		if envVarValue != "" {
-			ep.setBasicFieldFromString(result, field.path, envVarValue)
+		if wasSet {
+			ep.setBasicFieldFromString(result, field.path, value)
 		}
 	}
 
