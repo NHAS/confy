@@ -39,7 +39,7 @@ func LoadEnv[T any](delimiter string) (result T, err error) {
 
 // GetGeneratedEnv return list of auto generated environment variable names that LoadEnv/Config will check
 func GetGeneratedEnv[T any](delimiter string) []string {
-	a := new(T)
+	var a T
 	if reflect.TypeOf(a).Kind() != reflect.Struct {
 		panic("GetGeneratedEnv(...) only supports configs of Struct type")
 	}

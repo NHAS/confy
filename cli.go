@@ -211,7 +211,7 @@ func newCliLoader[T any](o *options) *ciParser[T] {
 
 // GetGeneratedCliFlags return list of auto generated cli flag names that LoadCli/Config will check
 func GetGeneratedCliFlags[T any](delimiter string) []string {
-	a := new(T)
+	var a T
 	if reflect.TypeOf(a).Kind() != reflect.Struct {
 		panic("GetGeneratedEnv(...) only supports configs of Struct type")
 	}
