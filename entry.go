@@ -46,11 +46,53 @@ func initLogger(o *options, initialLevel slog.Level) {
 	}))
 }
 
-// Config[T any] takes a structure and populates the exported fields from a number of configurable sources
+// Config[T any] takes a structure and populates the exported fields from multiple configurable sources.
 // Sources:
-//   - CLI
-//   - Environment Variables
-//   - Configuration File
+//   - CLI using the "flag" package
+//   - Environment Variables using os.Getenv(...)
+//   - Configuration File using filepath or raw bytes, this supports yaml, json and toml so your configuration can file can be any of those types
+//
+// Tags
+// Confy defines two flags:
+//
+//   - confy:"field_name;sensitive"
+//     The "confy" tag is used to rename the field, meaning changing what env variables, cli flags and configuration file/bytes fields to look for
+//
+//   - confy_description:"Field Description here"
+//     Sets the description of a field when being added to cli parsing, so when using -confy-help (or entering an invalid flag) it will so a good description
+//
+// Important Note:
+//
+//	Configuring from Envs or CLI flags is more difficult for complex types (like structures)
+//	As such to unmarshal very complex structs, or structs with private members, the struct must implement encoding.TextUnmarshaler and encoding.TextMarshaler to work properly
+//
+// CLI
+// Confy will automatically register flags from the configuration file structure and parse os.Args when FromCli is supplied as an option (or defaults are used)
+// flags will be in the following format:
+//
+//	 struct {
+//	    Thing string
+//	       Nested struct {
+//			   NestedField string
+//		   }
+//	 }
+//
+//	 would look for environment variables:
+//	 -Thing
+//	 -Nested_NestedField
+//
+// ENV
+//
+//	 struct {
+//	    Thing string
+//	       Nested struct {
+//			   NestedField string
+//		   }
+//	 }
+//
+//	 would look for environment variables:
+//	 Thing
+//	 Nested_NestedField
 func Config[T any](config T, suppliedOptions ...option) (result T, warnings []error, err error) {
 	if reflect.TypeOf(config).Kind() != reflect.Struct {
 		panic("Config(...) only supports configs of Struct type")
@@ -105,7 +147,8 @@ func Config[T any](config T, suppliedOptions ...option) (result T, warnings []er
 }
 
 // WithLogLevel sets the current slog output level
-// Defaulty logging is desabled
+// Defaulty logging is disabled
+// Very useful for debugging
 func WithLogLevel(level slog.Level) option {
 	return func(c *options) error {
 		c.level.Set(level)
@@ -212,7 +255,7 @@ func FromEnvs(delimiter string) option {
 //		   }
 //	 }
 //
-//	 would look for environment variables:
+//	 would look for CLI flags:
 //	 -Thing
 //	 -Nested_NestedField
 //
