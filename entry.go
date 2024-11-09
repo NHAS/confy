@@ -6,16 +6,20 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"reflect"
 )
 
-type Option func(*options) error
+type option func(*options) error
+
+type configDataOptions struct {
+	strictParsing bool
+	path          string
+	rawData       []byte
+	fileType      ConfigType
+}
 
 type options struct {
-	config struct {
-		strictParsing bool
-		path          string
-		fileType      ConfigType
-	}
+	config configDataOptions
 
 	cli struct {
 		delimiter string
@@ -42,7 +46,15 @@ func initLogger(o *options, initialLevel slog.Level) {
 	}))
 }
 
-func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []error, err error) {
+// Config[T any] takes a structure and populates the exported fields from a number of configurable sources
+// Sources:
+//   - CLI
+//   - Environment Variables
+//   - Configuration File
+func Config[T any](config T, suppliedOptions ...option) (result T, warnings []error, err error) {
+	if reflect.TypeOf(config).Kind() != reflect.Struct {
+		panic("Config(...) only supports configs of Struct type")
+	}
 
 	o := options{}
 	// disable logging by default
@@ -92,19 +104,26 @@ func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []er
 	return
 }
 
-func WithLogLevel(level slog.Level) Option {
+// WithLogLevel sets the current slog output level
+// Defaulty logging is desabled
+func WithLogLevel(level slog.Level) option {
 	return func(c *options) error {
 		c.level.Set(level)
 		return nil
 	}
 }
 
-func Defaults(path string) Option {
+// Defaults adds all three configuration determination options as on.
+// The configs struct will be configured config file -> envs -> cli, so that cli takes precedence over more static options, for ease of user configuration.
+// The config file will be parsed in a non-strict way (unknown fields will just be ignored) and the config file type is automatically determined from extension (supports yaml, toml and json), if you want to change this, add the FromConfigFile(...) option after Defaults(...)
+// path string : config file path
+func Defaults(path string) option {
 	return func(c *options) error {
 
-		FromCli(".")(c)
-		FromEnvs("_")(c)
+		// Process in config file -> env -> cli order
 		FromConfigFile(path, false, Auto)(c)
+		FromEnvs("_")(c)
+		FromCli(".")(c)
 
 		WithLogLevel(slog.LevelError)
 
@@ -112,10 +131,17 @@ func Defaults(path string) Option {
 	}
 }
 
-// Sets tells confy to load a config file from path
-func FromConfigFile(path string, strictParsing bool, configType ConfigType) Option {
+// FromConfigFile tells confy to load a config file from path
+// path: string config file path
+// strictParsing: bool allow unknown fields to exist in config file
+// configType: ConfigType, what type the config file is expected to be, use `Auto` if you dont care and just want it to choose for you. Supports yaml, toml and json
+func FromConfigFile(path string, strictParsing bool, configType ConfigType) option {
 	return func(c *options) error {
+
+		// Unset bytes, ConfigBytes conflicts with ConfigFile
+		c.config.rawData = nil
 		c.config.path = path
+
 		c.config.fileType = configType
 		c.config.strictParsing = strictParsing
 
@@ -125,8 +151,48 @@ func FromConfigFile(path string, strictParsing bool, configType ConfigType) Opti
 	}
 }
 
-// Confy will automatically look for environment variables
-func FromEnvs(delimiter string) Option {
+// FromConfigBytes tells confy to load a config file from raw bytes
+// data: []byte config file raw bytes
+// strictParsing: bool allow unknown fields to exist in config file
+// configType: ConfigType, what type the config bytes are supports yaml, toml and json, the Auto configuration will return an error
+func FromConfigBytes(data []byte, strictParsing bool, configType ConfigType) option {
+	return func(c *options) error {
+		if configType == Auto {
+			return errors.New("you cannot use automatic configuration type determination from bytes")
+		}
+
+		// Unset path, ConfigBytes conflicts with ConfigFile
+		c.config.path = ""
+		c.config.rawData = data
+
+		c.config.fileType = configType
+		c.config.strictParsing = strictParsing
+
+		c.order = append(c.order, configFile)
+
+		return nil
+	}
+}
+
+// FromEnvs sets confy to automatically populate the configuration structure from environment variables
+// delimiter: string when looking for environment variables this string should be used for denoting nested structures
+// e.g
+//
+//	 delimiter = _
+//	 struct {
+//	    Thing string
+//	       Nested struct {
+//			   NestedField string
+//		   }
+//	 }
+//
+//	 would look for environment variables:
+//	 Thing
+//	 Nested_NestedField
+//
+//	 Configuring from Envs cannot be as comprehensive for complex types (like structures) as using the configuration file.
+//	 To unmarshal very complex structs, the struct must implement encoding.TextUnmarshaler
+func FromEnvs(delimiter string) option {
 	return func(c *options) error {
 		c.cli.delimiter = delimiter
 		c.order = append(c.order, env)
@@ -134,8 +200,25 @@ func FromEnvs(delimiter string) Option {
 	}
 }
 
-// Confy will automatically look for variables from cli flags
-func FromCli(delimiter string) Option {
+// FromCli will automatically look for configuration variables from CLI flags
+// delimiter: string when looking for cli flags this string should be used for denoting nested structures
+// e.g
+//
+//	 delimiter = .
+//	 struct {
+//	    Thing string
+//	       Nested struct {
+//			   NestedField string
+//		   }
+//	 }
+//
+//	 would look for environment variables:
+//	 -Thing
+//	 -Nested_NestedField
+//
+//	 Configuring from Cli cannot be as comprehensive for complex types (like structures) as using the configuration file.
+//	 To unmarshal very complex structs, the struct must implement encoding.TextUnmarshaler and encoding.TextMarshaler
+func FromCli(delimiter string) option {
 	return func(c *options) error {
 		c.cli.delimiter = delimiter
 		c.order = append(c.order, cli)

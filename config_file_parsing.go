@@ -1,8 +1,10 @@
 package confy
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -167,14 +169,27 @@ func LoadConfigFileAuto[T any](path string, strict bool) (result T, err error) {
 	return LoadConfigFile[T](path, strict, Auto)
 }
 
+func LoadConfigBytes[T any](data []byte, strict bool, configType ConfigType) (result T, err error) {
+
+	o := &options{
+		config: configDataOptions{
+			strictParsing: strict,
+			rawData:       data,
+			fileType:      configType,
+		},
+	}
+
+	initLogger(o, math.MaxInt)
+
+	err = newConfigLoader[T](o).apply(&result)
+
+	return
+}
+
 func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (result T, err error) {
 
 	o := &options{
-		config: struct {
-			strictParsing bool
-			path          string
-			fileType      ConfigType
-		}{
+		config: configDataOptions{
 			strictParsing: strict,
 			path:          path,
 			fileType:      configType,
@@ -227,9 +242,14 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 		}
 	}
 
-	configFile, err := os.Open(cp.o.config.path)
-	if err != nil {
-		return fmt.Errorf("failed to open config file %q, err: %s", cp.o.config.path, err)
+	var configData io.Reader
+	if cp.o.config.path != "" {
+		configData, err = os.Open(cp.o.config.path)
+		if err != nil {
+			return fmt.Errorf("failed to open config file %q, err: %s", cp.o.config.path, err)
+		}
+	} else {
+		configData = bytes.NewBuffer(cp.o.config.rawData)
 	}
 
 	type configDecoder interface {
@@ -239,17 +259,17 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 	var decoder configDecoder
 	switch cp.o.config.fileType {
 	case Json:
-		jsDec := json.NewDecoder(configFile)
+		jsDec := json.NewDecoder(configData)
 		if cp.o.config.strictParsing {
 			jsDec.DisallowUnknownFields()
 		}
 		decoder = jsDec
 	case Yaml:
-		ymDec := yaml.NewDecoder(configFile)
+		ymDec := yaml.NewDecoder(configData)
 		ymDec.KnownFields(cp.o.config.strictParsing)
 		decoder = ymDec
 	case Toml:
-		tmlDec := toml.NewDecoder(configFile)
+		tmlDec := toml.NewDecoder(configData)
 		if cp.o.config.strictParsing {
 			tmlDec = tmlDec.DisallowUnknownFields()
 		}
