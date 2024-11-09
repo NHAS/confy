@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -175,12 +176,36 @@ func newCliLoader[T any](o *options) *ciParser[T] {
 	}
 }
 
+// LoadCli populates a configuration file T from cli arguments
+func LoadCli[T any](delimiter string) (result T, err error) {
+	if reflect.TypeOf(result).Kind() != reflect.Struct {
+		panic("LoadCli(...) only supports configs of Struct type")
+	}
+
+	o := &options{
+		cli: struct{ delimiter string }{
+			delimiter: delimiter,
+		},
+	}
+
+	initLogger(o, math.MaxInt)
+
+	err = newCliLoader[T](o).apply(&result)
+
+	return
+}
+
 func (cp *ciParser[T]) apply(result *T) (err error) {
+
+	if len(os.Args) == 0 {
+		cp.o.logger.Info("no os arguments supplied, not trying to parse cli")
+		return nil
+	}
 
 	CommandLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	CommandLine.SetOutput(os.Stdout)
 	if len(os.Args) <= 1 {
-		cp.o.logger.Info("no os arguments supplied, not trying to parse cli")
+		cp.o.logger.Info("one os arguments supplied, not trying to parse cli")
 		// There were no args to parse, so the user must not be using the cli
 		return nil
 	}

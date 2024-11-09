@@ -3,6 +3,7 @@ package confy
 import (
 	"encoding"
 	"log"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
@@ -17,6 +18,25 @@ func newEnvLoader[T any](o *options) *envParser[T] {
 	return &envParser[T]{
 		o: o,
 	}
+}
+
+// LoadEnv populates a configuration file T from environment variables
+func LoadEnv[T any](delimiter string) (result T, err error) {
+	if reflect.TypeOf(result).Kind() != reflect.Struct {
+		panic("LoadEnv(...) only supports configs of Struct type")
+	}
+
+	o := &options{
+		env: struct{ delimiter string }{
+			delimiter: delimiter,
+		},
+	}
+
+	initLogger(o, math.MaxInt)
+
+	err = newEnvLoader[T](o).apply(&result)
+
+	return
 }
 
 func (ep *envParser[T]) apply(result *T) (err error) {

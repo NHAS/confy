@@ -165,11 +165,11 @@ func (cp *configParser[T]) getAllTagNames(tag reflect.StructTag) (result []strin
 	return
 }
 
-func LoadConfigFileAuto[T any](path string, strict bool) (result T, err error) {
-	return LoadConfigFile[T](path, strict, Auto)
-}
-
+// LoadConfigBytes loads a configuration from yaml, json or toml bytes and returns the populated structure
 func LoadConfigBytes[T any](data []byte, strict bool, configType ConfigType) (result T, err error) {
+	if reflect.TypeOf(result).Kind() != reflect.Struct {
+		panic("LoadConfigBytes(...) only supports configs of Struct type")
+	}
 
 	o := &options{
 		config: configDataOptions{
@@ -186,7 +186,17 @@ func LoadConfigBytes[T any](data []byte, strict bool, configType ConfigType) (re
 	return
 }
 
+// LoadConfigFileAuto loads a yaml, json or toml file from path and returns the populated structure
+// sets automatic file type determination
+func LoadConfigFileAuto[T any](path string, strict bool) (result T, err error) {
+	return LoadConfigFile[T](path, strict, Auto)
+}
+
+// LoadConfigFile loads a yaml, json or toml file from path and returns the populated structure
 func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (result T, err error) {
+	if reflect.TypeOf(result).Kind() != reflect.Struct {
+		panic("LoadConfigFile(...) only supports configs of Struct type")
+	}
 
 	o := &options{
 		config: configDataOptions{

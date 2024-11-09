@@ -47,6 +47,17 @@ func initLogger(o *options, initialLevel slog.Level) {
 }
 
 // Config[T any] takes a structure and populates the exported fields from multiple configurable sources.
+// parameters:
+//
+// config T;                   A structure to populate
+// suppliedOptions ...option:  Various options that can be used, disabling configuration sources etc
+//
+// return:
+//
+// result T:         The populated configuration file
+// warnings []error: Non-fatal errors, but should be at least printed
+// err error:        Fatal errors while parsing/extracting/populating the configuration file
+//
 // Sources:
 //   - CLI using the "flag" package
 //   - Environment Variables using os.Getenv(...)
