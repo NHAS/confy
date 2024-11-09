@@ -209,6 +209,21 @@ func newCliLoader[T any](o *options) *ciParser[T] {
 	}
 }
 
+// GetGeneratedCliFlags return list of auto generated cli flag names that LoadCli/Config will check
+func GetGeneratedCliFlags[T any](delimiter string) []string {
+	a := new(T)
+	if reflect.TypeOf(a).Kind() != reflect.Struct {
+		panic("GetGeneratedEnv(...) only supports configs of Struct type")
+	}
+
+	var result []string
+	for _, field := range getFields(true, a) {
+		result = append(result, strings.Join(resolvePath(a, field.path), delimiter))
+	}
+
+	return result
+}
+
 // LoadCli populates a configuration file T from cli arguments
 func LoadCli[T any](delimiter string) (result T, err error) {
 	if reflect.TypeOf(result).Kind() != reflect.Struct {
@@ -255,6 +270,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 				field.value = field.value.Elem()
 			}
 
+			// if this changes update LoadCli
 			flagName := strings.Join(resolvePath(result, field.path), cp.o.cli.delimiter)
 
 			cp.o.logger.Info("resolved confy path", "resolved_path", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))

@@ -176,8 +176,8 @@ func Defaults(path string) option {
 
 		// Process in config file -> env -> cli order
 		FromConfigFile(path, false, Auto)(c)
-		FromEnvs("_")(c)
-		FromCli(".")(c)
+		FromEnvs(DefaultENVDelimiter)(c)
+		FromCli(DefaultCliDelimiter)(c)
 
 		WithLogLevel(slog.LevelError)
 

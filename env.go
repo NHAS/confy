@@ -37,9 +37,25 @@ func LoadEnv[T any](delimiter string) (result T, err error) {
 	return
 }
 
+// GetGeneratedEnv return list of auto generated environment variable names that LoadEnv/Config will check
+func GetGeneratedEnv[T any](delimiter string) []string {
+	a := new(T)
+	if reflect.TypeOf(a).Kind() != reflect.Struct {
+		panic("GetGeneratedEnv(...) only supports configs of Struct type")
+	}
+
+	var result []string
+	for _, field := range getFields(true, a) {
+		result = append(result, strings.Join(resolvePath(a, field.path), delimiter))
+	}
+
+	return result
+}
+
 func (ep *envParser[T]) apply(result *T) (err error) {
 
 	for _, field := range getFields(true, result) {
+		// Update GetGeneratedEnv if this changes
 		envVariable := strings.Join(resolvePath(result, field.path), ep.o.env.delimiter)
 		envVarValue := os.Getenv(envVariable)
 

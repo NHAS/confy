@@ -28,4 +28,9 @@ const (
 	confyDescriptionTag = "confy_description"
 )
 
-const LoggingDisabled = math.MaxInt
+const (
+	DefaultENVDelimiter = "_"
+	DefaultCliDelimiter = "."
+
+	LoggingDisabled = math.MaxInt
+)
