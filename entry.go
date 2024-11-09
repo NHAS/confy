@@ -121,7 +121,7 @@ func Config[T any](suppliedOptions ...option) (result T, warnings []error, err e
 	}
 
 	if len(o.order) == 0 {
-		if err := Defaults("config.json")(&o); err != nil {
+		if err := Defaults("config.json", false)(&o); err != nil {
 			return result, nil, err
 		}
 	}
@@ -171,7 +171,7 @@ func WithLogLevel(level slog.Level) option {
 // The configs struct will be configured config file -> envs -> cli, so that cli takes precedence over more static options, for ease of user configuration.
 // The config file will be parsed in a non-strict way (unknown fields will just be ignored) and the config file type is automatically determined from extension (supports yaml, toml and json), if you want to change this, add the FromConfigFile(...) option after Defaults(...)
 // path string : config file path
-func Defaults(path string) option {
+func Defaults(path string, strictConfigFileParsing bool) option {
 	return func(c *options) error {
 
 		// Process in config file -> env -> cli order
