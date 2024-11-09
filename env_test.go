@@ -147,9 +147,7 @@ func TestEnvTransform(t *testing.T) {
 	o := &options{
 		env: transientOptions{
 			delimiter: ".",
-			transform: func(generated string) string {
-				return strings.ToUpper(generated)
-			},
+			transform: strings.ToUpper,
 		},
 	}
 	initLogger(o, slog.LevelDebug)

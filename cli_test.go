@@ -201,9 +201,7 @@ func TestCliTransform(t *testing.T) {
 	o := &options{
 		cli: transientOptions{
 			delimiter: ".",
-			transform: func(generated string) string {
-				return strings.ToUpper(generated)
-			},
+			transform: strings.ToUpper,
 		},
 	}
 	initLogger(o, slog.LevelDebug)
