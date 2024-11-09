@@ -85,9 +85,16 @@ func main() {
     fmt.Printf("Loaded YAML config: %+v\n", yamlLoadedConfig)
 
     // They're the same!
-
+    
 }
 ```
+
+Output
+```sh
+Loaded config: {Database:{Host:localhost Port:5432 User:dbuser Password:securepassword} Renamed:some_value}
+Loaded config: {Database:{Host:localhost Port:5432 User:dbuser Password:securepassword} Renamed:some_value}
+```
+
 
 ### Environment Variables
 For struct:
@@ -106,19 +113,21 @@ type Config struct {
 }
 
 func main() {
-	populatedConfig, warnings, err := confy.Config[Config](confy.FromCli(confy.DefaultCliDelimiter))
+	populatedConfig, _, err := confy.Config[Config](confy.FromEnvs(confy.DefaultENVDelimiter))
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		return
 	}
 
-    fmt.Println(populatedConfig.Database.Port)
+    fmt.Println(populatedConfig.Server.Host)
 }
 ```
 Expected environment variable:
 
 ```sh
 export Server_Host="localhost"
+$ ./test
+localhost
 ```
 
 ### CLI Flags only
@@ -138,7 +147,7 @@ type Config struct {
 }
 
 func main() {
-	populatedConfig, warnings, err := confy.Config[Config](confy.FromCli(confy.DefaultCliDelimiter))
+	populatedConfig, _, err := confy.Config[Config](confy.FromCli(confy.DefaultCliDelimiter))
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		return
@@ -150,7 +159,7 @@ func main() {
 ```
 Expected CLI flag:
 ```sh
-./app -Database.Port=5432
+$ ./app -Database.Port=5432
 5432
 ```
 
