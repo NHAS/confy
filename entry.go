@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"log/slog"
-	"math"
 	"os"
 	"reflect"
 )
@@ -112,7 +111,7 @@ func Config[T any](config T, suppliedOptions ...option) (result T, warnings []er
 
 	o := options{}
 	// disable logging by default
-	initLogger(&o, math.MaxInt)
+	initLogger(&o, LoggingDisabled)
 
 	for _, optFunc := range suppliedOptions {
 		err := optFunc(&o)

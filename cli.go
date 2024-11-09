@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -188,7 +187,7 @@ func LoadCli[T any](delimiter string) (result T, err error) {
 		},
 	}
 
-	initLogger(o, math.MaxInt)
+	initLogger(o, LoggingDisabled)
 
 	err = newCliLoader[T](o).apply(&result)
 

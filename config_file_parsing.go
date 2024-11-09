@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -176,7 +175,7 @@ func LoadConfigBytes[T any](data []byte, strict bool, configType ConfigType) (re
 		},
 	}
 
-	initLogger(o, math.MaxInt)
+	initLogger(o, LoggingDisabled)
 
 	err = newConfigLoader[T](o).apply(&result)
 
@@ -203,7 +202,7 @@ func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (res
 		},
 	}
 
-	initLogger(o, math.MaxInt)
+	initLogger(o, LoggingDisabled)
 
 	err = newConfigLoader[T](o).apply(&result)
 

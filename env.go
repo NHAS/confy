@@ -2,7 +2,6 @@ package confy
 
 import (
 	"encoding"
-	"math"
 	"os"
 	"reflect"
 	"strconv"
@@ -31,7 +30,7 @@ func LoadEnv[T any](delimiter string) (result T, err error) {
 		},
 	}
 
-	initLogger(o, math.MaxInt)
+	initLogger(o, LoggingDisabled)
 
 	err = newEnvLoader[T](o).apply(&result)
 

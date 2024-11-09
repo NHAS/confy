@@ -1,5 +1,7 @@
 package confy
 
+import "math"
+
 type loader[T any] interface {
 	apply(current *T) error
 }
@@ -25,3 +27,5 @@ const (
 	confyTag            = "confy"
 	confyDescriptionTag = "confy_description"
 )
+
+const LoggingDisabled = math.MaxInt
