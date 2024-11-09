@@ -6,7 +6,6 @@ import (
 )
 
 func TestConfigBasic(t *testing.T) {
-	var d testStruct
 
 	os.Args = []string{
 		"dummyprogramname",
@@ -17,7 +16,7 @@ func TestConfigBasic(t *testing.T) {
 		"-complex_array", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	_, _, err := Config(d, Defaults("testdata/test.json"))
+	_, _, err := Config[testStruct](Defaults("testdata/test.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

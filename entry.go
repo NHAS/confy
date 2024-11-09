@@ -104,8 +104,8 @@ func initLogger(o *options, initialLevel slog.Level) {
 //	 would look for environment variables:
 //	 Thing
 //	 Nested_NestedField
-func Config[T any](config T, suppliedOptions ...option) (result T, warnings []error, err error) {
-	if reflect.TypeOf(config).Kind() != reflect.Struct {
+func Config[T any](suppliedOptions ...option) (result T, warnings []error, err error) {
+	if reflect.TypeOf(result).Kind() != reflect.Struct {
 		panic("Config(...) only supports configs of Struct type")
 	}
 
