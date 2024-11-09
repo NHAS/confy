@@ -248,7 +248,7 @@ func FromConfigBytes(data []byte, strictParsing bool, configType ConfigType) opt
 //	 To unmarshal very complex structs, the struct must implement encoding.TextUnmarshaler
 func FromEnvs(delimiter string) option {
 	return func(c *options) error {
-		c.cli.delimiter = delimiter
+		c.env.delimiter = delimiter
 		c.order = append(c.order, env)
 		return nil
 	}
