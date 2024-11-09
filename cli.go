@@ -254,8 +254,6 @@ func LoadCli[T any](delimiter string) (result T, err error) {
 		},
 	}
 
-	initLogger(o, LoggingDisabled)
-
 	err = newCliLoader[T](o).apply(&result)
 
 	return
@@ -264,14 +262,14 @@ func LoadCli[T any](delimiter string) (result T, err error) {
 func (cp *ciParser[T]) apply(result *T) (err error) {
 
 	if len(os.Args) == 0 {
-		cp.o.logger.Info("no os arguments supplied, not trying to parse cli")
+		logger.Info("no os arguments supplied, not trying to parse cli")
 		return nil
 	}
 
 	CommandLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	CommandLine.SetOutput(os.Stdout)
 	if len(os.Args) <= 1 {
-		cp.o.logger.Info("one os arguments supplied, not trying to parse cli")
+		logger.Info("one os arguments supplied, not trying to parse cli")
 		// There were no args to parse, so the user must not be using the cli
 		return nil
 	}
@@ -291,7 +289,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 	for _, field := range getFields(true, dummyCopy) {
 
 		willAccess := field.value.CanAddr() && field.value.CanInterface()
-		cp.o.logger.Info("got field from config", slog.Any(strings.Join(field.path, "."), field.value.String()), "will_continue_parsing", fmt.Sprintf("%t (addr: %t, intf: %t)", willAccess, field.value.CanAddr(), field.value.CanInterface()))
+		logger.Info("got field from config", slog.Any(strings.Join(field.path, "."), field.value.String()), "will_continue_parsing", fmt.Sprintf("%t (addr: %t, intf: %t)", willAccess, field.value.CanAddr(), field.value.CanInterface()))
 
 		if willAccess {
 
@@ -303,14 +301,14 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 			flagName := strings.Join(resolvePath(dummyCopy, field.path), cp.o.cli.delimiter)
 			if cp.o.cli.transform != nil {
 				flagName = cp.o.cli.transform(flagName)
-				cp.o.logger.Info("using transform func on cli flag", "before_func", strings.Join(resolvePath(dummyCopy, field.path), cp.o.cli.delimiter), "after_func", flagName)
+				logger.Info("using transform func on cli flag", "before_func", strings.Join(resolvePath(dummyCopy, field.path), cp.o.cli.delimiter), "after_func", flagName)
 			}
 
-			cp.o.logger.Info("resolved confy path", "resolved_path", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
+			logger.Info("resolved confy path", "resolved_path", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 
 			description, ok := field.tag.Lookup(confyDescriptionTag)
 			if !ok {
-				cp.o.logger.Info("could not find 'confy_description:' tag will auto generate from type", "tags", field.tag, "path", strings.Join(field.path, cp.o.cli.delimiter))
+				logger.Info("could not find 'confy_description:' tag will auto generate from type", "tags", field.tag, "path", strings.Join(field.path, cp.o.cli.delimiter))
 
 				typeName := field.value.Kind().String()
 				if field.value.Kind() == reflect.Slice {
@@ -326,7 +324,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 				description = fmt.Sprintf("A %s value, %s (%s)", typeName, strings.Join(field.path, cp.o.cli.delimiter), flagName)
 			}
 
-			cp.o.logger.Info("adding flag", "flag", "-"+flagName, "type", field.value.Kind())
+			logger.Info("adding flag", "flag", "-"+flagName, "type", field.value.Kind())
 			flagAssociation[flagName] = association{v: field.value, path: field.path, tag: field.tag}
 
 			switch field.value.Kind() {
@@ -355,7 +353,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 				default:
 					inter := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 					if !reflect.PointerTo(sliceContentType).Implements(inter) {
-						cp.o.logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
+						logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 						continue
 					}
 					parser = newGenericSlice(sliceContentType)
@@ -366,19 +364,19 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 
 				textUnmarshaler, ok := field.value.Addr().Interface().(encoding.TextUnmarshaler)
 				if !ok {
-					cp.o.logger.Warn("structure doesnt implement encoding.TextUnmarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
+					logger.Warn("structure doesnt implement encoding.TextUnmarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 					continue
 				}
 
 				textMarshaler, ok := field.value.Addr().Interface().(encoding.TextMarshaler)
 				if !ok {
-					cp.o.logger.Warn("structure doesnt implement encoding.TextMarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
+					logger.Warn("structure doesnt implement encoding.TextMarshaler", "flag", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))
 					continue
 				}
 
 				CommandLine.TextVar(textUnmarshaler, flagName, textMarshaler, description)
 			default:
-				cp.o.logger.Warn("unsupported type for cli auto-addition", "type", field.value.Kind().String(), "path", strings.Join(field.path, cp.o.cli.delimiter))
+				logger.Warn("unsupported type for cli auto-addition", "type", field.value.Kind().String(), "path", strings.Join(field.path, cp.o.cli.delimiter))
 				continue
 			}
 		}
@@ -392,7 +390,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 	help := false
 	CommandLine.Visit(func(f *flag.Flag) {
 		if f.Name == "confy-help" {
-			cp.o.logger.Info("the help flag -confy-help was set")
+			logger.Info("the help flag -confy-help was set")
 
 			help = true
 			return
@@ -407,7 +405,7 @@ func (cp *ciParser[T]) apply(result *T) (err error) {
 
 		v.Set(association.v)
 
-		cp.o.logger.Info("CLI FLAG", "-"+f.Name, maskSensitive(f.Value.String(), association.tag))
+		logger.Info("CLI FLAG", "-"+f.Name, maskSensitive(f.Value.String(), association.tag))
 	})
 
 	if help {

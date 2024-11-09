@@ -28,20 +28,20 @@ type options struct {
 	cli transientOptions
 	env transientOptions
 
-	level  *slog.LevelVar
-	logger *slog.Logger
-
 	order []preference
 }
 
-func initLogger(o *options, initialLevel slog.Level) {
+var (
+	level  *slog.LevelVar
+	logger *slog.Logger
+)
 
-	o.level = new(slog.LevelVar)
+func init() {
+	level = new(slog.LevelVar)
+	level.Set(LoggingDisabled)
 
-	o.level.Set(initialLevel)
-
-	o.logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     o.level,
+	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     level,
 		AddSource: true,
 	}))
 }
@@ -110,8 +110,6 @@ func Config[T any](suppliedOptions ...option) (result T, warnings []error, err e
 	}
 
 	o := options{}
-	// disable logging by default
-	initLogger(&o, LoggingDisabled)
 
 	for _, optFunc := range suppliedOptions {
 		err := optFunc(&o)
@@ -132,7 +130,7 @@ func Config[T any](suppliedOptions ...option) (result T, warnings []error, err e
 		configFile: newConfigLoader[T](&o),
 	}
 
-	o.logger.Info("Populating configuration in this order: ", slog.Any("order", o.order))
+	logger.Info("Populating configuration in this order: ", slog.Any("order", o.order))
 
 	for _, p := range o.order {
 
@@ -144,11 +142,11 @@ func Config[T any](suppliedOptions ...option) (result T, warnings []error, err e
 		err := f.apply(&result)
 		if err != nil {
 			if len(o.order) > 1 && !errors.Is(err, flag.ErrHelp) {
-				o.logger.Warn("parser issued warning", "parser", p, "err", err.Error())
+				logger.Warn("parser issued warning", "parser", p, "err", err.Error())
 
 				warnings = append(warnings, err)
 			} else {
-				o.logger.Error("parser issued error", "parser", p, "err", err.Error())
+				logger.Error("parser issued error", "parser", p, "err", err.Error())
 				return result, nil, err
 			}
 		}
@@ -160,9 +158,9 @@ func Config[T any](suppliedOptions ...option) (result T, warnings []error, err e
 // WithLogLevel sets the current slog output level
 // Defaulty logging is disabled
 // Very useful for debugging
-func WithLogLevel(level slog.Level) option {
+func WithLogLevel(logLevel slog.Level) option {
 	return func(c *options) error {
-		c.level.Set(level)
+		level.Set(logLevel)
 		return nil
 	}
 }

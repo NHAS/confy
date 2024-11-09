@@ -102,11 +102,11 @@ func (cp *configParser[T]) setField(v interface{}, fieldPath []string, value ref
 			} else {
 
 				if !f.IsValid() {
-					cp.o.logger.Warn("Field not valid", "field", fieldPath)
+					logger.Warn("Field not valid", "field", fieldPath)
 				}
 
 				if !f.CanAddr() {
-					cp.o.logger.Warn("Cant address Field", "field", fieldPath)
+					logger.Warn("Cant address Field", "field", fieldPath)
 				}
 			}
 		} else {
@@ -175,8 +175,6 @@ func LoadConfigBytes[T any](data []byte, strict bool, configType ConfigType) (re
 		},
 	}
 
-	initLogger(o, LoggingDisabled)
-
 	err = newConfigLoader[T](o).apply(&result)
 
 	return
@@ -202,8 +200,6 @@ func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (res
 		},
 	}
 
-	initLogger(o, LoggingDisabled)
-
 	err = newConfigLoader[T](o).apply(&result)
 
 	return
@@ -226,21 +222,21 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 		return err
 	}
 
-	cp.o.logger.Info(fmt.Sprintf("constructed value (with auto added tags): %#v", clone))
+	logger.Info(fmt.Sprintf("constructed value (with auto added tags): %#v", clone))
 
 	if cp.o.config.fileType == Auto {
 		ext := strings.ToLower(filepath.Ext(cp.o.config.path))
 		switch ext {
 		case ".yml", ".yaml":
-			cp.o.logger.Info("yaml chosen as config type", "file_path", cp.o.config.path)
+			logger.Info("yaml chosen as config type", "file_path", cp.o.config.path)
 
 			cp.o.config.fileType = Yaml
 		case ".json", ".js":
-			cp.o.logger.Info("json chosen as config type", "file_path", cp.o.config.path)
+			logger.Info("json chosen as config type", "file_path", cp.o.config.path)
 
 			cp.o.config.fileType = Json
 		case ".toml", ".tml":
-			cp.o.logger.Info("toml chosen as config type", "file_path", cp.o.config.path)
+			logger.Info("toml chosen as config type", "file_path", cp.o.config.path)
 
 			cp.o.config.fileType = Toml
 		default:
@@ -290,7 +286,7 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 	fields := getFields(false, clone)
 
 	for _, value := range fields {
-		cp.o.logger.Info("setting field of config file", "path", strings.Join(value.path, "."), "value", value.value.String(), "tag", value.tag)
+		logger.Info("setting field of config file", "path", strings.Join(value.path, "."), "value", value.value.String(), "tag", value.tag)
 
 		cp.setField(result, value.path, value.value)
 	}
@@ -364,7 +360,7 @@ func (cp *configParser[T]) createModifiedType(t reflect.Type) reflect.Type {
 			PkgPath:   field.PkgPath,
 		}
 
-		cp.o.logger.Info("cloning struct fields", "struct", t.Name(), "field", field.Name, "type", field.Type.Kind())
+		logger.Info("cloning struct fields", "struct", t.Name(), "field", field.Name, "type", field.Type.Kind())
 
 		// Handle nested structs
 		if field.Type.Kind() == reflect.Struct {
@@ -384,14 +380,14 @@ func (cp *configParser[T]) createModifiedType(t reflect.Type) reflect.Type {
 				fieldMarshallingName = parts[0]
 			}
 
-			cp.o.logger.Info("field had 'confy:' tag", "struct", t.Name(), "field", field.Name, "tag_value", confyInstruction)
+			logger.Info("field had 'confy:' tag", "struct", t.Name(), "field", field.Name, "tag_value", confyInstruction)
 
 			if confyTagsOnThisLevel[fieldMarshallingName] {
 				panic(fmt.Sprintf("duplicate confy:\"%s\" found on %s (type %s)", fieldMarshallingName, field.Name, field.Type))
 			}
 			confyTagsOnThisLevel[fieldMarshallingName] = true
 		} else {
-			cp.o.logger.Info("field had NO 'confy:' tag", "struct", t.Name(), "field", field.Name, "all_tags", field.Tag)
+			logger.Info("field had NO 'confy:' tag", "struct", t.Name(), "field", field.Name, "all_tags", field.Tag)
 		}
 
 		if fieldMarshallingName != "" {
@@ -411,7 +407,7 @@ func (cp *configParser[T]) createModifiedType(t reflect.Type) reflect.Type {
 			// Preserve existing tags
 			value, ok := field.Tag.Lookup(tagName)
 			if !ok {
-				cp.o.logger.Warn("could not preserve existing tag", "tag_name", tagName, "all_tags", field.Tag)
+				logger.Warn("could not preserve existing tag", "tag_name", tagName, "all_tags", field.Tag)
 				continue
 			}
 
@@ -423,7 +419,7 @@ func (cp *configParser[T]) createModifiedType(t reflect.Type) reflect.Type {
 
 		for confyTagName, confyTagValue := range confyTagNames {
 			if alreadySetTags[confyTagName] {
-				cp.o.logger.Warn("not adding auto generated tag as already exists", "tag_name", confyTagName, "existing_value", field.Tag.Get(confyTagName))
+				logger.Warn("not adding auto generated tag as already exists", "tag_name", confyTagName, "existing_value", field.Tag.Get(confyTagName))
 				continue
 			}
 			tagsToSet = append(tagsToSet, fmt.Sprintf("%s:\"%s\"", confyTagName, confyTagValue))

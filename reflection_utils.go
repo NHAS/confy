@@ -39,6 +39,7 @@ func getFields(returnStructs bool, v interface{}) []fieldsData {
 		fieldName := typeData.Field(i).Name
 
 		if !fieldVal.CanInterface() || !fieldVal.CanAddr() {
+			logger.Warn("unable to access field", "field_name", fieldName, "can_intf", fieldVal.CanInterface(), "can_addr", fieldVal.CanAddr())
 			continue
 		}
 
@@ -80,17 +81,23 @@ func getFields(returnStructs bool, v interface{}) []fieldsData {
 
 func getField(v interface{}, fieldPath []string) (reflect.Value, reflect.StructField) {
 	r := reflect.ValueOf(v).Elem()
-	t := reflect.TypeOf(v).Elem()
+	t := r.Type()
 
 	for i, part := range fieldPath {
 		if i == len(fieldPath)-1 {
 			f := r.FieldByName(part)
-			ft, _ := t.FieldByName(part)
+			ft, ok := t.FieldByName(part)
+			if !ok {
+				logger.Error("failed to get type by field name", "field_name", part)
+			}
 			if f.IsValid() {
 				return f, ft
+			} else {
+				logger.Error("field was invalid when searching struct", "field_name", part)
 			}
 		} else {
 			r = r.FieldByName(part)
+			t = r.Type()
 		}
 	}
 
@@ -103,9 +110,13 @@ func resolvePath(v interface{}, fieldPath []string) []string {
 
 		currentPath := fieldPath[i]
 		_, ft := getField(v, fieldPath[:i+1])
-		if value, ok := ft.Tag.Lookup(confyTag); ok {
+
+		value, ok := ft.Tag.Lookup(confyTag)
+		if ok {
 			currentPath = value
 		}
+
+		logger.Info("resolving path", "tags", ft.Tag, "had_confy_tag", ok, "current_path", fieldPath[:i+1])
 
 		resolvedPath = append(resolvedPath, currentPath)
 	}

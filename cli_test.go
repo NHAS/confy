@@ -1,7 +1,6 @@
 package confy
 
 import (
-	"log/slog"
 	"os"
 	"reflect"
 	"strings"
@@ -19,7 +18,6 @@ func TestCliBasicTypes(t *testing.T) {
 			delimiter: ".",
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	err := newCliLoader[testStruct](o).apply(&dummyConfig)
 	if err != nil {
@@ -81,7 +79,6 @@ func TestCliComplexTypes(t *testing.T) {
 			delimiter: ".",
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	err := newCliLoader[testCliStruct](o).apply(&dummyConfig)
 	if err != nil {
@@ -140,7 +137,6 @@ func TestCliEmptyStringSlice(t *testing.T) {
 			delimiter: ".",
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	err := newCliLoader[lotsOfArrays](o).apply(&lots)
 	if err == nil {
@@ -164,7 +160,6 @@ func TestCliHelperMethod(t *testing.T) {
 			delimiter: ".",
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	var small Small
 	err := newCliLoader[Small](o).apply(&small)
@@ -204,7 +199,6 @@ func TestCliTransform(t *testing.T) {
 			transform: strings.ToUpper,
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	err := newCliLoader[testCliStruct](o).apply(&dummyConfig)
 	if err != nil {

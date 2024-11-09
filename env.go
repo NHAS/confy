@@ -30,8 +30,6 @@ func LoadEnv[T any](delimiter string) (result T, err error) {
 		},
 	}
 
-	initLogger(o, LoggingDisabled)
-
 	err = newEnvLoader[T](o).apply(&result)
 
 	return
@@ -77,11 +75,11 @@ func (ep *envParser[T]) apply(result *T) (err error) {
 		envVariable := strings.Join(resolvePath(result, field.path), ep.o.env.delimiter)
 		if ep.o.env.transform != nil {
 			envVariable = ep.o.env.transform(envVariable)
-			ep.o.logger.Info("using transform func on env variable", "before_func", strings.Join(resolvePath(result, field.path), ep.o.env.delimiter), "after_func", envVariable)
+			logger.Info("using transform func on env variable", "before_func", strings.Join(resolvePath(result, field.path), ep.o.env.delimiter), "after_func", envVariable)
 		}
 
 		value, wasSet := os.LookupEnv(envVariable)
-		ep.o.logger.Info("ENV", "was_set", wasSet, envVariable, maskSensitive(value, field.tag))
+		logger.Info("ENV", "was_set", wasSet, envVariable, maskSensitive(value, field.tag))
 
 		if wasSet {
 			ep.setBasicFieldFromString(result, field.path, value)
@@ -114,7 +112,7 @@ outer:
 
 					reflectedVal, err := strconv.Atoi(value)
 					if err != nil {
-						ep.o.logger.Error("field should be float", "err", err, "path", flagName)
+						logger.Error("field should be float", "err", err, "path", flagName)
 						continue
 					}
 					f.SetInt(int64(reflectedVal))
@@ -123,7 +121,7 @@ outer:
 					case "true", "false", "":
 						f.SetBool(value == "true" && value != "")
 					default:
-						ep.o.logger.Error("field should be bool", "value", value, "path", flagName)
+						logger.Error("field should be bool", "value", value, "path", flagName)
 						continue
 					}
 				case reflect.Float64:
@@ -134,7 +132,7 @@ outer:
 
 					reflectedVal, err := strconv.ParseFloat(value, 64)
 					if err != nil {
-						ep.o.logger.Error("field should be float", "err", err, "path", flagName)
+						logger.Error("field should be float", "err", err, "path", flagName)
 						continue
 					}
 					f.SetFloat(reflectedVal)
@@ -150,7 +148,7 @@ outer:
 						for _, p := range sliceParts {
 							a, err := strconv.Atoi(p)
 							if err != nil {
-								ep.o.logger.Error("expected int could not parse", "err", err, "value", p, "path", flagName)
+								logger.Error("expected int could not parse", "err", err, "value", p, "path", flagName)
 
 								continue outer
 							}
@@ -165,7 +163,7 @@ outer:
 						for _, p := range sliceParts {
 							a, err := strconv.ParseFloat(p, 64)
 							if err != nil {
-								ep.o.logger.Error("expected float could not parse", "err", err, "value", p, "path", flagName)
+								logger.Error("expected float could not parse", "err", err, "value", p, "path", flagName)
 
 								continue outer
 							}
@@ -182,7 +180,7 @@ outer:
 							case "true", "false":
 								resultingArray = append(resultingArray, p == "true")
 							default:
-								ep.o.logger.Error("expected bool could not parse", "value", p, "path", flagName)
+								logger.Error("expected bool could not parse", "value", p, "path", flagName)
 								continue outer
 							}
 						}
@@ -191,7 +189,7 @@ outer:
 					default:
 						inter := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 						if !reflect.PointerTo(sliceContentType).Implements(inter) {
-							ep.o.logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "flag", flagName, "path", flagName)
+							logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "flag", flagName, "path", flagName)
 							continue
 						}
 
@@ -201,7 +199,7 @@ outer:
 
 							err := n.UnmarshalText([]byte(p))
 							if err != nil {
-								ep.o.logger.Error("could not unmarshal text for complex inner slice type", "err", err, "flag", flagName, "path", flagName)
+								logger.Error("could not unmarshal text for complex inner slice type", "err", err, "flag", flagName, "path", flagName)
 								continue outer
 							}
 
@@ -218,7 +216,7 @@ outer:
 
 					_, ok := f.Addr().Interface().(encoding.TextUnmarshaler)
 					if !ok {
-						ep.o.logger.Warn("structure doesnt implement encoding.TextUnmarshaler", "flag", flagName, "path", flagName)
+						logger.Warn("structure doesnt implement encoding.TextUnmarshaler", "flag", flagName, "path", flagName)
 						continue
 					}
 
@@ -226,18 +224,18 @@ outer:
 
 					err := n.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value))
 					if err != nil {
-						ep.o.logger.Error("unmarshaling struct (TextUnmarshaler) failed", "err", err, "path", flagName)
+						logger.Error("unmarshaling struct (TextUnmarshaler) failed", "err", err, "path", flagName)
 						continue
 					}
 
 					f.Set(n.Elem())
 
 				default:
-					ep.o.logger.Warn("unsupported type for env auto-addition", "type", f.Kind().String(), "path", flagName)
+					logger.Warn("unsupported type for env auto-addition", "type", f.Kind().String(), "path", flagName)
 					continue
 				}
 			} else {
-				ep.o.logger.Error("Field not found", "path", flagName)
+				logger.Error("Field not found", "path", flagName)
 			}
 		} else {
 			r = r.FieldByName(part)

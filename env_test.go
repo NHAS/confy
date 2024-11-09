@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+func TestMain(m *testing.M) {
+
+	level.Set(slog.LevelDebug)
+	code := m.Run()
+
+	os.Exit(code)
+}
+
 func TestEnvBasicTypes(t *testing.T) {
 
 	var dummyConfig testStruct
@@ -22,7 +30,6 @@ func TestEnvBasicTypes(t *testing.T) {
 			delimiter: ".",
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	err := newEnvLoader[testStruct](o).apply(&dummyConfig)
 	if err != nil {
@@ -40,6 +47,7 @@ func TestEnvBasicTypes(t *testing.T) {
 	if dummyConfig.Thonku.Mff != "toaster" {
 		t.Fatalf("%+v", dummyConfig)
 	}
+
 }
 
 func TestEnvComplexTypes(t *testing.T) {
@@ -56,7 +64,6 @@ func TestEnvComplexTypes(t *testing.T) {
 			delimiter: ".",
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	err := newEnvLoader[testCliStruct](o).apply(&dummyConfig)
 	if err != nil {
@@ -113,7 +120,6 @@ func TestEnvHelperMethod(t *testing.T) {
 			delimiter: ".",
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	var small Small
 	err := newEnvLoader[Small](o).apply(&small)
@@ -150,7 +156,6 @@ func TestEnvTransform(t *testing.T) {
 			transform: strings.ToUpper,
 		},
 	}
-	initLogger(o, slog.LevelDebug)
 
 	err := newEnvLoader[testCliStruct](o).apply(&dummyConfig)
 	if err != nil {
