@@ -165,12 +165,12 @@ Confy offers a variety of options for configuring your application's settings.
 
 | Option | Description |
 |----------|-------------|
-| `Defaults(path string)` | Loads configurations in the order: config file -> environment variables -> CLI flags. This sets a non-strict parsing mode for unknown fields in the config file. |
-| `FromConfigFile(path string, strictParsing bool, configType ConfigType)` | Load configuration from a file. Supports `YAML`, `JSON`, and `TOML`. |
-| `FromConfigBytes(data []byte, strictParsing bool, configType ConfigType)` | Load configuration from raw bytes, ideal for embedding configuration in code. |
-| `FromEnvs(delimiter string)` | Load configuration from environment variables. Use the delimiter to denote nested fields. |
-| `FromCli(delimiter string)` | Load configuration from CLI flags. Set a delimiter for nested struct parsing. |
-| `WithLogLevel(level slog.Level)` | Set logging level to control output verbosity. Useful for debugging. |
+| `Defaults(...)` | Loads configurations in the order: config file -> environment variables -> CLI flags. This sets a non-strict parsing mode for unknown fields in the config file. |
+| `FromConfigFile(...)` | Load configuration from a file. Supports `YAML`, `JSON`, and `TOML`. |
+| `FromConfigBytes(...)` | Load configuration from raw bytes, ideal for embedding configuration in code. |
+| `FromEnvs(...)` | Load configuration from environment variables. Use the delimiter to denote nested fields. |
+| `FromCli(...)` | Load configuration from CLI flags. Set a delimiter for nested struct parsing. |
+| `WithLogLevel(...)` | Set logging level to control output verbosity. Useful for debugging. |
 
 
 ## Notes
