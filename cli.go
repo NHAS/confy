@@ -2,6 +2,7 @@ package confy
 
 import (
 	"encoding"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -27,10 +28,18 @@ func newStringSlice(target interface{}) *stringSlice {
 }
 
 func (s *stringSlice) String() string {
+	if s == nil {
+		return ""
+	}
+
 	return strings.Join(*s.target, ",")
 }
 
 func (s *stringSlice) Set(value string) error {
+	if s == nil {
+		return errors.New("nil")
+	}
+
 	*s.target = strings.Split(value, ",")
 	return nil
 }
@@ -50,6 +59,9 @@ func newIntSlice(target interface{}) *intSlice {
 }
 
 func (s *intSlice) String() string {
+	if s == nil {
+		return ""
+	}
 
 	var result []string
 	for _, i := range *s.target {
@@ -60,6 +72,10 @@ func (s *intSlice) String() string {
 }
 
 func (s *intSlice) Set(value string) error {
+	if s == nil {
+		return errors.New("nil")
+	}
+
 	for _, potentialInt := range strings.Split(value, ",") {
 		i, err := strconv.Atoi(potentialInt)
 		if err != nil {
@@ -85,6 +101,9 @@ func newFloatSlice(target interface{}) *floatSlice {
 }
 
 func (s *floatSlice) String() string {
+	if s == nil {
+		return ""
+	}
 
 	var result []string
 	for _, i := range *s.target {
@@ -95,6 +114,10 @@ func (s *floatSlice) String() string {
 }
 
 func (s *floatSlice) Set(value string) error {
+	if s == nil {
+		return errors.New("nil")
+	}
+
 	for _, potentialFloat := range strings.Split(value, ",") {
 		i, err := strconv.ParseFloat(potentialFloat, 64)
 		if err != nil {
@@ -120,6 +143,9 @@ func newBoolSlice(target interface{}) *boolSlice {
 }
 
 func (s *boolSlice) String() string {
+	if s == nil {
+		return ""
+	}
 
 	var result []string
 	for _, i := range *s.target {
@@ -130,6 +156,10 @@ func (s *boolSlice) String() string {
 }
 
 func (s *boolSlice) Set(value string) error {
+	if s == nil {
+		return errors.New("")
+	}
+
 	for _, potentialBool := range strings.Split(value, ",") {
 		*s.target = append(*s.target, potentialBool == "true")
 	}
