@@ -53,10 +53,6 @@ func Config[T any](config T, suppliedOptions ...Option) (result T, warnings []er
 			panic("unknown preference option: " + p)
 		}
 
-		if f == nil {
-			continue
-		}
-
 		err := f(o, &result)
 		if err != nil {
 			if len(o.order) > 1 && !errors.Is(err, flag.ErrHelp) {

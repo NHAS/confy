@@ -13,8 +13,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const confyTag = "confy"
-
 var (
 	supportedTags = []string{
 		"json",
@@ -242,7 +240,7 @@ func loadConfig[T any](o options, result *T) (err error) {
 		return fmt.Errorf("failed to decode config: %s", err)
 	}
 
-	fields := getFields(clone)
+	fields := getFields(false, clone)
 
 	for _, value := range fields {
 		setField(result, value.path, value.value)

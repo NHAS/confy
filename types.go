@@ -18,3 +18,8 @@ const (
 )
 
 type loader[T any] func(o options, current *T) error
+
+const (
+	confyTag            = "confy"
+	confyDescriptionTag = "confy_description"
+)

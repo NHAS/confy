@@ -13,7 +13,7 @@ type fieldsData struct {
 	tag   reflect.StructTag
 }
 
-func getFields(v interface{}) []fieldsData {
+func getFields(returnStructs bool, v interface{}) []fieldsData {
 	t := reflect.ValueOf(v)
 	typeData := reflect.TypeOf(v)
 
@@ -22,9 +22,8 @@ func getFields(v interface{}) []fieldsData {
 		typeData = typeData.Elem()
 	}
 
-	fields := []fieldsData{}
-
 	if t.Kind() != reflect.Struct {
+
 		return []fieldsData{
 			{
 				path:  []string{typeData.Name()},
@@ -33,19 +32,33 @@ func getFields(v interface{}) []fieldsData {
 		}
 	}
 
+	var fields []fieldsData
+
 	for i := 0; i < t.NumField(); i++ {
 		fieldVal := t.Field(i)
 
 		fieldTag := typeData.Field(i).Tag
 		fieldName := typeData.Field(i).Name
 
+		if !fieldVal.CanInterface() || !fieldVal.CanAddr() {
+			continue
+		}
+
 		if fieldVal.Type().Kind() == reflect.Struct {
+
+			if returnStructs {
+				fields = append(fields, fieldsData{
+					path:  []string{fieldName},
+					value: fieldVal,
+					tag:   fieldTag,
+				})
+			}
 
 			if fieldVal.CanAddr() {
 				fieldVal = fieldVal.Addr()
 			}
 
-			subFields := getFields(fieldVal.Interface())
+			subFields := getFields(returnStructs, fieldVal.Interface())
 			for _, value := range subFields {
 
 				currentFieldPath := value
@@ -63,6 +76,7 @@ func getFields(v interface{}) []fieldsData {
 			})
 		}
 	}
+
 	return fields
 }
 
