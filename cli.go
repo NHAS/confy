@@ -247,9 +247,3 @@ func loadCli[T any](o options, result *T) (err error) {
 
 	return nil
 }
-
-type dummyTextMarshaler string
-
-func (s *dummyTextMarshaler) MarshalText() ([]byte, error) {
-	return []byte(*s), nil
-}
