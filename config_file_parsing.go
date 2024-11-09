@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -59,7 +58,6 @@ func (cp *configParser[T]) setArray(targetArray, values reflect.Value) reflect.V
 		if existingElement.Kind() == reflect.Struct {
 
 			newElem := reflect.New(targetArray.Type().Elem()).Elem()
-			log.Println(newElem.Type())
 
 			// Copy fields from elem to newElem
 			for k := 0; k < existingElement.NumField(); k++ {
@@ -105,12 +103,11 @@ func (cp *configParser[T]) setField(v interface{}, fieldPath []string, value ref
 			} else {
 
 				if !f.IsValid() {
-					log.Printf("Field not found: %s", fieldPath)
+					cp.o.logger.Warn("Field not valid", "field", fieldPath)
 				}
 
 				if !f.CanAddr() {
-					log.Printf("Cant address: %s", fieldPath)
-
+					cp.o.logger.Warn("Cant address Field", "field", fieldPath)
 				}
 			}
 		} else {

@@ -2,7 +2,6 @@ package confy
 
 import (
 	"encoding"
-	"log"
 	"math"
 	"os"
 	"reflect"
@@ -42,8 +41,6 @@ func LoadEnv[T any](delimiter string) (result T, err error) {
 func (ep *envParser[T]) apply(result *T) (err error) {
 
 	for _, field := range getFields(true, result) {
-		log.Println("fields: ", field)
-
 		envVariable := strings.Join(resolvePath(result, field.path), ep.o.env.delimiter)
 		envVarValue := os.Getenv(envVariable)
 
@@ -208,7 +205,7 @@ outer:
 					continue
 				}
 			} else {
-				log.Printf("Field not found: %s", fieldPath)
+				ep.o.logger.Error("Field not found", "path", flagName)
 			}
 		} else {
 			r = r.FieldByName(part)

@@ -42,7 +42,8 @@ func initLogger(o *options, initialLevel slog.Level) {
 	o.level.Set(initialLevel)
 
 	o.logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: o.level,
+		Level:     o.level,
+		AddSource: true,
 	}))
 }
 
