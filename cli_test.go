@@ -3,6 +3,7 @@ package confy
 import (
 	"log/slog"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -144,6 +145,43 @@ func TestCliEmptyStringSlice(t *testing.T) {
 	err := newCliLoader[lotsOfArrays](o).apply(&lots)
 	if err == nil {
 		t.Fail()
+	}
+}
+
+func TestCliHelperMethod(t *testing.T) {
+	type Small struct {
+		Thing  string
+		Nested struct {
+			NestedVal string
+		}
+	}
+
+	os.Args = []string{
+		"dummy",
+	}
+	o := &options{
+		cli: struct{ delimiter string }{
+			delimiter: ".",
+		},
+	}
+	initLogger(o, slog.LevelDebug)
+
+	var small Small
+	err := newCliLoader[Small](o).apply(&small)
+	if err != nil {
+		t.Fail()
+	}
+
+	expectedContents := []string{
+		"Thing",
+		"Nested",
+		"Nested.NestedVal",
+	}
+
+	vals := GetGeneratedCliFlags[Small](DefaultCliDelimiter)
+
+	if !reflect.DeepEqual(expectedContents, vals) {
+		t.Fatalf("expected %v got %v", expectedContents, vals)
 	}
 
 }

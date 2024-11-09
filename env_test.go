@@ -3,6 +3,7 @@ package confy
 import (
 	"log/slog"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -95,14 +96,40 @@ func TestEnvComplexTypes(t *testing.T) {
 	}
 }
 
-func equalStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
+func TestEnvHelperMethod(t *testing.T) {
+	type Small struct {
+		Thing  string
+		Nested struct {
+			NestedVal string
 		}
 	}
-	return true
+
+	os.Args = []string{
+		"dummy",
+	}
+	o := &options{
+		cli: struct{ delimiter string }{
+			delimiter: ".",
+		},
+	}
+	initLogger(o, slog.LevelDebug)
+
+	var small Small
+	err := newEnvLoader[Small](o).apply(&small)
+	if err != nil {
+		t.Fail()
+	}
+
+	expectedContents := []string{
+		"Thing",
+		"Nested",
+		"Nested.NestedVal",
+	}
+
+	vals := GetGeneratedCliFlags[Small](DefaultCliDelimiter)
+
+	if !reflect.DeepEqual(expectedContents, vals) {
+		t.Fatalf("expected %v got %v", expectedContents, vals)
+	}
+
 }

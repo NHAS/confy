@@ -46,7 +46,7 @@ func GetGeneratedEnv[T any](delimiter string) []string {
 
 	var result []string
 	for _, field := range getFields(true, &a) {
-		result = append(result, strings.Join(resolvePath(a, field.path), delimiter))
+		result = append(result, strings.Join(resolvePath(&a, field.path), delimiter))
 	}
 
 	return result
