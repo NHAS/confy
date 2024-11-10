@@ -83,20 +83,27 @@ func (ep *envParser[T]) apply(result *T) (somethingSet bool, err error) {
 			logger.Info("using transform func on env variable", "before_func", strings.Join(resolvePath(result, field.path), ep.o.env.delimiter), "after_func", envVariable)
 		}
 
-		if field.value.Kind() == reflect.Struct || field.value.Kind() == reflect.Array || field.value.Kind() == reflect.Slice {
-
+		if field.value.Kind() == reflect.Struct {
 			current := field.value
-			if field.value.Kind() == reflect.Array || field.value.Kind() == reflect.Slice {
-				// get the actual type
-				current = field.value.Elem()
-			}
-
 			_, ok := current.Addr().Interface().(encoding.TextUnmarshaler)
 			if !ok {
 				logger.Warn("type doesnt implement encoding.TextUnmarshaler skipping looking for an ENV variable for it", "path", strings.Join(field.path, ep.o.env.delimiter))
 				continue
 			}
+		}
 
+		if field.value.Kind() == reflect.Array || field.value.Kind() == reflect.Slice {
+			sliceContentType := field.value.Type().Elem()
+
+			switch sliceContentType.Kind() {
+			case reflect.String, reflect.Int, reflect.Int64, reflect.Float64, reflect.Bool:
+			default:
+				inter := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+				if !reflect.PointerTo(sliceContentType).Implements(inter) {
+					logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "path", strings.Join(field.path, ep.o.env.delimiter))
+					continue
+				}
+			}
 		}
 
 		value, wasSet := os.LookupEnv(envVariable)
