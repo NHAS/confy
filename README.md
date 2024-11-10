@@ -177,7 +177,9 @@ Confy offers a variety of options for configuring your application's settings.
 | `Defaults(...)` | Loads configurations in the order: config file -> environment variables -> CLI flags. This sets a non-strict parsing mode for unknown fields in the config file. |
 | `FromConfigFile(...)` | Load configuration from a file. Supports `YAML`, `JSON`, and `TOML`. |
 | `FromConfigBytes(...)` | Load configuration from raw bytes, ideal for embedding configuration in code. |
-| `FromEnvs(...)` | Load configuration from environment variables. Use the delimiter to denote nested fields. |
+| `FromConfigURL(...)` | Load configuration from URL. Supports `YAML`, `JSON`, and `TOML`, use extension or content type to specify type when using auto keyword|
+| `FromConfigFileFlagPath(...)` | Load configuration from file with filepath specified as cli flag |
+| `WithStrictParsing(...)` | Parse config files in a strict way, do not allow unknown fields |
 | `FromCli(...)` | Load configuration from CLI flags. Set a delimiter for nested struct parsing. |
 | `WithLogLevel(...)` | Set logging level to control output verbosity. Useful for debugging. |
 | `WithCliTransform(...)` | Takes a function to run against the generated CLI flag name, allows you to modify the flag name |

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 )
@@ -155,6 +156,9 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 				logger.Warn("parser issued warning", "parser", p, "err", err.Error())
 
 				warnings = append(warnings, err)
+			} else if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) && p != cli {
+				err = orderLoadOpts[cli].apply(&result)
+				return result, nil, err
 			} else {
 				logger.Error("parser issued error", "parser", p, "err", err.Error())
 				return result, nil, err
@@ -356,12 +360,23 @@ func FromConfigURL(urlOpt string, configType ConfigType) OptionFunc {
 // FromConfigFileFlagPath tells confy to load file from path as specified by cli flag
 // cliFlagName: string cli option that defines config filepath
 // configType: ConfigType, what type the config file is expected to be, use `Auto` if you dont care and just want it to choose for you. Supports yaml, toml and json
-func FromConfigFileFlagPath(cliFlagName string, configType ConfigType) OptionFunc {
+func FromConfigFileFlagPath(cliFlagName, defaultPath, description string, configType ConfigType) OptionFunc {
 	return func(c *options) error {
 
-		FromConfigFile("", configType)
+		commandLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
-		return nil
+		configPath := commandLine.String(cliFlagName, defaultPath, description)
+		if err := commandLine.Parse(os.Args[1:]); err != nil {
+			if err == flag.ErrHelp {
+				commandLine.PrintDefaults()
+				return flag.ErrHelp
+			}
+
+			// We will get a lot of random "flag not defined" errors,as our flags are defined much later (if at all) in the Cli component
+			configPath = &defaultPath
+		}
+
+		return FromConfigFile(*configPath, configType)(c)
 	}
 }
 
