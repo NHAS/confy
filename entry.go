@@ -129,6 +129,23 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 		configFile: newConfigLoader[T](&o),
 	}
 
+	var errs []error
+	for _, optFunc := range suppliedOptions {
+		err := optFunc(&o)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	cErr := errors.Join(errs...)
+	if cErr != nil {
+		// special case, if cli is enabled print out the help from that too
+		if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) {
+			orderLoadOpts[cli].apply(&result)
+		}
+		return result, nil, cErr
+	}
+
 	if len(o.order) == 0 {
 		if err := Defaults("config", "config.json")(&o); err != nil {
 			if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) {
@@ -136,24 +153,6 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 			}
 
 			return result, nil, err
-		}
-	} else {
-
-		var errs []error
-		for _, optFunc := range suppliedOptions {
-			err := optFunc(&o)
-			if err != nil {
-				errs = append(errs, err)
-			}
-		}
-
-		cErr := errors.Join(errs...)
-		if cErr != nil {
-			// special case, if cli is enabled print out the help from that too
-			if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) {
-				orderLoadOpts[cli].apply(&result)
-			}
-			return result, nil, cErr
 		}
 	}
 
