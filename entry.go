@@ -195,7 +195,7 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 	}
 
 	if !anythingWasSet {
-		return result, warnings, fmt.Errorf("nothing was set in configuration from sources: %s", o.order)
+		return result, warnings, fmt.Errorf("nothing was set in configuration from sources: %s, warnings: %s", o.order, errors.Join(warnings...))
 	}
 
 	return
