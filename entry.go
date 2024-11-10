@@ -140,7 +140,7 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 	cErr := errors.Join(errs...)
 	if cErr != nil {
 		// special case, if cli is enabled print out the help from that too
-		if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) {
+		if errors.Is(cErr, flag.ErrHelp) && slices.Contains(o.order, cli) {
 			orderLoadOpts[cli].apply(&result)
 		}
 		return result, nil, cErr
