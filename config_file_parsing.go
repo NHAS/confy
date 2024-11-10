@@ -2,6 +2,7 @@ package confy
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -163,7 +164,15 @@ func LoadConfigBytes[T any](data []byte, strict bool, configType ConfigType) (re
 		panic("LoadConfigBytes(...) only supports configs of Struct type")
 	}
 
-	result, _, err = Config[T](FromConfigBytes(data, strict, configType))
+	opts := []OptionFunc{
+		FromConfigBytes(data, configType),
+	}
+
+	if strict {
+		opts = append(opts, WithStrictParsing())
+	}
+
+	result, _, err = Config[T](opts...)
 
 	return
 }
@@ -180,7 +189,15 @@ func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (res
 		panic("LoadConfigFile(...) only supports configs of Struct type")
 	}
 
-	result, _, err = Config[T](FromConfigFile(path, strict, configType))
+	opts := []OptionFunc{
+		FromConfigFile(path, configType),
+	}
+
+	if strict {
+		opts = append(opts, WithStrictParsing())
+	}
+
+	result, _, err = Config[T](opts...)
 
 	return
 }
@@ -235,6 +252,8 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 			tmlDec = tmlDec.DisallowUnknownFields()
 		}
 		decoder = tmlDec
+	default:
+		return errors.New("config type could not be determined")
 	}
 
 	err = decoder.Decode(clone)

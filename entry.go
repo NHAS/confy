@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 )
 
-type optionFunc func(*options) error
+type OptionFunc func(*options) error
 
 type configDataOptions struct {
 	strictParsing bool
@@ -109,7 +112,7 @@ func init() {
 //	 would look for environment variables:
 //	 Thing
 //	 Nested_NestedField
-func Config[T any](suppliedOptions ...optionFunc) (result T, warnings []error, err error) {
+func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, err error) {
 	if reflect.TypeOf(result).Kind() != reflect.Struct {
 		panic("Config(...) only supports configs of Struct type")
 	}
@@ -126,7 +129,7 @@ func Config[T any](suppliedOptions ...optionFunc) (result T, warnings []error, e
 	}
 
 	if len(o.order) == 0 {
-		if err := Defaults("config.json", false)(&o); err != nil {
+		if err := Defaults("config.json")(&o); err != nil {
 			return result, nil, err
 		}
 	}
@@ -165,7 +168,7 @@ func Config[T any](suppliedOptions ...optionFunc) (result T, warnings []error, e
 // WithLogLevel sets the current slog output level
 // Defaulty logging is disabled
 // Very useful for debugging
-func WithLogLevel(logLevel slog.Level) optionFunc {
+func WithLogLevel(logLevel slog.Level) OptionFunc {
 	return func(c *options) error {
 		level.Set(logLevel)
 		return nil
@@ -176,11 +179,11 @@ func WithLogLevel(logLevel slog.Level) optionFunc {
 // The configs struct will be configured config file -> envs -> cli, so that cli takes precedence over more static options, for ease of user configuration.
 // The config file will be parsed in a non-strict way (unknown fields will just be ignored) and the config file type is automatically determined from extension (supports yaml, toml and json), if you want to change this, add the FromConfigFile(...) option after Defaults(...)
 // path string : config file path
-func Defaults(path string, strictConfigFileParsing bool) optionFunc {
+func Defaults(path string) OptionFunc {
 	return func(c *options) error {
 
 		// Process in config file -> env -> cli order
-		err := FromConfigFile(path, false, Auto)(c)
+		err := FromConfigFile(path, Auto)(c)
 		if err != nil {
 			return err
 		}
@@ -200,9 +203,8 @@ func Defaults(path string, strictConfigFileParsing bool) optionFunc {
 
 // FromConfigFile tells confy to load a config file from path
 // path: string config file path
-// strictParsing: bool allow unknown fields to exist in config file
 // configType: ConfigType, what type the config file is expected to be, use `Auto` if you dont care and just want it to choose for you. Supports yaml, toml and json
-func FromConfigFile(path string, strictParsing bool, configType ConfigType) optionFunc {
+func FromConfigFile(path string, configType ConfigType) OptionFunc {
 	return func(c *options) error {
 		if c.currentlySet[configFile] {
 			return errors.New("duplicate configuration information source, " + string(configFile) + " FromConfig* option set twice, mutually exclusive")
@@ -239,8 +241,6 @@ func FromConfigFile(path string, strictParsing bool, configType ConfigType) opti
 			return configData, fileType, err
 		}
 
-		c.config.strictParsing = strictParsing
-
 		c.order = append(c.order, configFile)
 
 		return nil
@@ -249,9 +249,8 @@ func FromConfigFile(path string, strictParsing bool, configType ConfigType) opti
 
 // FromConfigBytes tells confy to load a config file from raw bytes
 // data: []byte config file raw bytes
-// strictParsing: bool allow unknown fields to exist in config file
 // configType: ConfigType, what type the config bytes are supports yaml, toml and json, the Auto configuration will return an error
-func FromConfigBytes(data []byte, strictParsing bool, configType ConfigType) optionFunc {
+func FromConfigBytes(data []byte, configType ConfigType) OptionFunc {
 	return func(c *options) error {
 		if c.currentlySet[configFile] {
 			return errors.New("duplicate configuration information source, " + string(configFile) + " FromConfig* option set twice, mutually exclusive")
@@ -274,10 +273,102 @@ func FromConfigBytes(data []byte, strictParsing bool, configType ConfigType) opt
 			return bytes.NewBuffer(data), configType, nil
 		}
 
-		c.config.strictParsing = strictParsing
-
 		c.order = append(c.order, configFile)
 
+		return nil
+	}
+}
+
+// FromConfigURL tells confy to load file from a url (http/https)
+// url: string url of configuration file
+// configType: ConfigType, what type the config file is expected to be, use `Auto` if you dont care and just want it to choose for you. Supports yaml, toml and json
+func FromConfigURL(urlOpt string, configType ConfigType) OptionFunc {
+	return func(c *options) error {
+		if c.currentlySet[configFile] {
+			return errors.New("duplicate configuration information source, " + string(configFile) + " FromConfig* option set twice, mutually exclusive")
+		}
+		c.currentlySet[configFile] = true
+
+		c.config.dataMethod = func() (io.Reader, ConfigType, error) {
+
+			u, err := url.Parse(urlOpt)
+			if err != nil {
+				return nil, configType, err
+			}
+
+			client := http.Client{
+				Timeout: 20 * time.Second,
+			}
+
+			resp, err := client.Get(urlOpt)
+			if err != nil {
+				return nil, configType, fmt.Errorf("failed to get config from url: %s, err: %s", urlOpt, err)
+			}
+
+			if resp.StatusCode < 200 || resp.StatusCode > 299 {
+				resp.Body.Close()
+				return nil, configType, fmt.Errorf("status code was not okay: %s", resp.Status)
+			}
+
+			var fileType ConfigType
+			if configType == Auto {
+				ext := strings.ToLower(filepath.Ext(u.Path))
+				switch ext {
+				case ".yml", ".yaml":
+					logger.Info("yaml chosen as config type from extension", "url_path", u.Path)
+
+					fileType = Yaml
+				case ".json", ".js":
+					logger.Info("json chosen as config type from extension", "url_path", u.Path)
+
+					fileType = Json
+				case ".toml", ".tml":
+					logger.Info("toml chosen as config type from extension", "url_path", u.Path)
+
+					fileType = Toml
+				default:
+					logger.Info("no extension in url, using content type instead")
+					contentType := resp.Header.Get("content-type")
+					switch contentType {
+					case "application/yaml", "application/x-yaml", "text/yaml":
+						fileType = Yaml
+					case "application/json":
+						fileType = Json
+					case "text/x-toml", "application/toml", "text/toml":
+						fileType = Toml
+					default:
+						resp.Body.Close()
+						return nil, configType, fmt.Errorf("could not automatically determine config format from extension %q or content-type %q", ext, contentType)
+
+					}
+
+				}
+			}
+
+			return resp.Body, fileType, err
+		}
+
+		c.order = append(c.order, configFile)
+		return nil
+	}
+}
+
+// FromConfigFileFlagPath tells confy to load file from path as specified by cli flag
+// cliFlagName: string cli option that defines config filepath
+// configType: ConfigType, what type the config file is expected to be, use `Auto` if you dont care and just want it to choose for you. Supports yaml, toml and json
+func FromConfigFileFlagPath(cliFlagName string, configType ConfigType) OptionFunc {
+	return func(c *options) error {
+
+		FromConfigFile("", configType)
+
+		return nil
+	}
+}
+
+// WithStrictParsing parse config files in a strict way, do not allow unknown fields
+func WithStrictParsing() OptionFunc {
+	return func(c *options) error {
+		c.config.strictParsing = true
 		return nil
 	}
 }
@@ -300,7 +391,7 @@ func FromConfigBytes(data []byte, strictParsing bool, configType ConfigType) opt
 //
 //	 Configuring from Envs cannot be as comprehensive for complex types (like structures) as using the configuration file.
 //	 To unmarshal very complex structs, the struct must implement encoding.TextUnmarshaler
-func FromEnvs(delimiter string) optionFunc {
+func FromEnvs(delimiter string) OptionFunc {
 	return func(c *options) error {
 		c.env.delimiter = delimiter
 		c.order = append(c.order, env)
@@ -319,7 +410,7 @@ func FromEnvs(delimiter string) optionFunc {
 //
 // WithCliTransform(transformFunc)
 // results searching for env variables that are all upper case
-func WithEnvTransform(t Transform) optionFunc {
+func WithEnvTransform(t Transform) OptionFunc {
 	return func(c *options) error {
 		if t == nil {
 			logger.Warn("WithEnvTransform was used, but transform was nil")
@@ -348,7 +439,7 @@ func WithEnvTransform(t Transform) optionFunc {
 //
 //	 Configuring from Cli cannot be as comprehensive for complex types (like structures) as using the configuration file.
 //	 To unmarshal very complex structs, the struct must implement encoding.TextUnmarshaler and encoding.TextMarshaler
-func FromCli(delimiter string) optionFunc {
+func FromCli(delimiter string) OptionFunc {
 	return func(c *options) error {
 		c.cli.delimiter = delimiter
 		c.order = append(c.order, cli)
@@ -367,7 +458,7 @@ func FromCli(delimiter string) optionFunc {
 //
 // WithCliTransform(transformFunc)
 // results in cli flag names that are all upper case
-func WithCliTransform(t Transform) optionFunc {
+func WithCliTransform(t Transform) OptionFunc {
 	return func(c *options) error {
 		if t == nil {
 			logger.Warn("WithCliTranform was used, but transform was nil")

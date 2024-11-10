@@ -25,7 +25,7 @@ func TestConfigBasic(t *testing.T) {
 		"-complex_array", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	_, _, err := Config[testStruct](Defaults("testdata/test.json", false))
+	_, _, err := Config[testStruct](Defaults("testdata/test.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
