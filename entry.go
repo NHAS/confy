@@ -278,7 +278,7 @@ func FromConfigFile(path string, configType ConfigType) OptionFunc {
 		c.config.dataMethod = func() (io.Reader, ConfigType, error) {
 			configData, err := os.Open(path)
 			if err != nil {
-				return nil, "", fmt.Errorf("failed to open config file %q, err: %s", path, err)
+				return nil, "", err
 			}
 
 			var fileType ConfigType
@@ -446,6 +446,12 @@ func FromConfigFileFlagPath(cliFlagName, defaultPath, description string, config
 		}
 
 		return FromConfigFile(*configPath, configType)(c)
+	}
+}
+
+func WithNonStructCliFlag() OptionFunc {
+	return func(o *options) error {
+		return nil
 	}
 }
 
