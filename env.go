@@ -83,6 +83,22 @@ func (ep *envParser[T]) apply(result *T) (somethingSet bool, err error) {
 			logger.Info("using transform func on env variable", "before_func", strings.Join(resolvePath(result, field.path), ep.o.env.delimiter), "after_func", envVariable)
 		}
 
+		if field.value.Kind() == reflect.Struct || field.value.Kind() == reflect.Array || field.value.Kind() == reflect.Slice {
+
+			current := field.value
+			if field.value.Kind() == reflect.Array || field.value.Kind() == reflect.Slice {
+				// get the actual type
+				current = field.value.Elem()
+			}
+
+			_, ok := current.Addr().Interface().(encoding.TextUnmarshaler)
+			if !ok {
+				logger.Warn("type doesnt implement encoding.TextUnmarshaler skipping looking for an ENV variable for it", "path", strings.Join(field.path, ep.o.env.delimiter))
+				continue
+			}
+
+		}
+
 		value, wasSet := os.LookupEnv(envVariable)
 		logger.Info("ENV", "was_set", wasSet, envVariable, maskSensitive(value, field.tag))
 
