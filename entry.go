@@ -130,7 +130,7 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 	}
 
 	if len(o.order) == 0 {
-		if err := Defaults("config.json")(&o); err != nil {
+		if err := Defaults("config", "config.json")(&o); err != nil {
 			return result, nil, err
 		}
 	}
@@ -182,8 +182,35 @@ func WithLogLevel(logLevel slog.Level) OptionFunc {
 // Defaults adds all three configuration determination options as on.
 // The configs struct will be configured config file -> envs -> cli, so that cli takes precedence over more static options, for ease of user configuration.
 // The config file will be parsed in a non-strict way (unknown fields will just be ignored) and the config file type is automatically determined from extension (supports yaml, toml and json), if you want to change this, add the FromConfigFile(...) option after Defaults(...)
+// cliFlag string : cli flag that holds the config path
+// defaultPath string: if the cli flag is not defined, used this as the default path to load config from
+func Defaults(cliFlag, defaultPath string) OptionFunc {
+	return func(c *options) error {
+
+		// Process in config file -> env -> cli order
+		err := FromConfigFileFlagPath(cliFlag, defaultPath, "config file path", Auto)(c)
+		if err != nil {
+			return err
+		}
+		err = FromEnvs(DefaultENVDelimiter)(c)
+		if err != nil {
+			return err
+		}
+		err = FromCli(DefaultCliDelimiter)(c)
+		if err != nil {
+			return err
+		}
+		WithLogLevel(slog.LevelError)
+
+		return nil
+	}
+}
+
+// DefaultsFromPath adds all three configuration determination sources.
+// The configs struct will be configured config file -> envs -> cli, so that cli takes precedence over more static options, for ease of user configuration.
+// The config file will be parsed in a non-strict way (unknown fields will just be ignored) and the config file type is automatically determined from extension (supports yaml, toml and json), if you want to change this, add the FromConfigFile(...) option after Defaults(...)
 // path string : config file path
-func Defaults(path string) OptionFunc {
+func DefaultsFromPath(path string) OptionFunc {
 	return func(c *options) error {
 
 		// Process in config file -> env -> cli order
