@@ -135,7 +135,7 @@ type Config struct {
 }
 
 func main() {
-	populatedConfig, _, err := confy.Config[Config](confy.FromEnvs(confy.DefaultENVDelimiter))
+	populatedConfig, _, err := confy.Config[Config](confy.FromEnvs(confy.ENVDelimiter))
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		return
@@ -169,7 +169,7 @@ type Config struct {
 }
 
 func main() {
-	populatedConfig, _, err := confy.Config[Config](confy.FromCli(confy.DefaultCliDelimiter))
+	populatedConfig, _, err := confy.Config[Config](confy.FromCli(confy.CLIDelimiter))
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		return
