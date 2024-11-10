@@ -424,10 +424,19 @@ func FromConfigFileFlagPath(cliFlagName, defaultPath, description string, config
 	return func(c *options) error {
 
 		commandLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		commandLine.SetOutput(io.Discard)
 
 		configPath := commandLine.String(cliFlagName, defaultPath, description)
 		if err := commandLine.Parse(os.Args[1:]); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
+
+				// This weirdness is because Parse will print out things if it doesnt recognise them
+				// as this section of the code has no knowledge of what structs are actually defined
+				// we want to only print help if asked for it
+				commandLine.SetOutput(os.Stdout)
+				fmt.Fprintf(os.Stdout, "Usage of %s:\n", os.Args[0])
+				commandLine.PrintDefaults()
+				commandLine.SetOutput(io.Discard)
 
 				return flag.ErrHelp
 			}

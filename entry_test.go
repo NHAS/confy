@@ -53,5 +53,4 @@ func TestConfigurationHelp(t *testing.T) {
 		t.Fatal("should return that help was asked for")
 	}
 
-	t.Fail()
 }
