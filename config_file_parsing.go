@@ -1,12 +1,8 @@
 package confy
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -167,15 +163,7 @@ func LoadConfigBytes[T any](data []byte, strict bool, configType ConfigType) (re
 		panic("LoadConfigBytes(...) only supports configs of Struct type")
 	}
 
-	o := &options{
-		config: configDataOptions{
-			strictParsing: strict,
-			rawData:       data,
-			fileType:      configType,
-		},
-	}
-
-	err = newConfigLoader[T](o).apply(&result)
+	result, _, err = Config[T](FromConfigBytes(data, strict, configType))
 
 	return
 }
@@ -192,15 +180,7 @@ func LoadConfigFile[T any](path string, strict bool, configType ConfigType) (res
 		panic("LoadConfigFile(...) only supports configs of Struct type")
 	}
 
-	o := &options{
-		config: configDataOptions{
-			strictParsing: strict,
-			path:          path,
-			fileType:      configType,
-		},
-	}
-
-	err = newConfigLoader[T](o).apply(&result)
+	result, _, err = Config[T](FromConfigFile(path, strict, configType))
 
 	return
 }
@@ -217,6 +197,10 @@ func newConfigLoader[T any](o *options) *configParser[T] {
 }
 
 func (cp *configParser[T]) apply(result *T) (err error) {
+	if cp.o.config.dataMethod == nil {
+		panic("No data method available for getting config data, this is a mistake")
+	}
+
 	clone, err := cp.cloneWithNewTags(result)
 	if err != nil {
 		return err
@@ -224,34 +208,9 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 
 	logger.Info(fmt.Sprintf("constructed value (with auto added tags): %#v", clone))
 
-	if cp.o.config.fileType == Auto {
-		ext := strings.ToLower(filepath.Ext(cp.o.config.path))
-		switch ext {
-		case ".yml", ".yaml":
-			logger.Info("yaml chosen as config type", "file_path", cp.o.config.path)
-
-			cp.o.config.fileType = Yaml
-		case ".json", ".js":
-			logger.Info("json chosen as config type", "file_path", cp.o.config.path)
-
-			cp.o.config.fileType = Json
-		case ".toml", ".tml":
-			logger.Info("toml chosen as config type", "file_path", cp.o.config.path)
-
-			cp.o.config.fileType = Toml
-		default:
-			return fmt.Errorf("unsupported file extension %q", strings.ToLower(filepath.Ext(cp.o.config.path)))
-		}
-	}
-
-	var configData io.Reader
-	if cp.o.config.path != "" {
-		configData, err = os.Open(cp.o.config.path)
-		if err != nil {
-			return fmt.Errorf("failed to open config file %q, err: %s", cp.o.config.path, err)
-		}
-	} else {
-		configData = bytes.NewBuffer(cp.o.config.rawData)
+	configData, configType, err := cp.o.config.dataMethod()
+	if err != nil {
+		return err
 	}
 
 	type configDecoder interface {
@@ -259,7 +218,7 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 	}
 
 	var decoder configDecoder
-	switch cp.o.config.fileType {
+	switch configType {
 	case Json:
 		jsDec := json.NewDecoder(configData)
 		if cp.o.config.strictParsing {

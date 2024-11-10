@@ -10,16 +10,8 @@ import (
 
 func TestCliBasicTypes(t *testing.T) {
 
-	var dummyConfig testStruct
 	os.Args = []string{"dummyprogramname", "-thing", "helloworld", "-b_bool", "-thonku_complex.Mff", "toaster"}
-
-	o := &options{
-		cli: transientOptions{
-			delimiter: ".",
-		},
-	}
-
-	err := newCliLoader[testStruct](o).apply(&dummyConfig)
+	dummyConfig, err := LoadCli[testStruct](DefaultCliDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +56,6 @@ type testCliStruct struct {
 
 func TestCliComplexTypes(t *testing.T) {
 
-	var dummyConfig testCliStruct
 	os.Args = []string{
 		"dummyprogramname",
 		"-marshal", "test marshalling",
@@ -74,13 +65,7 @@ func TestCliComplexTypes(t *testing.T) {
 		"-complex_array", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	o := &options{
-		cli: transientOptions{
-			delimiter: ".",
-		},
-	}
-
-	err := newCliLoader[testCliStruct](o).apply(&dummyConfig)
+	dummyConfig, err := LoadCli[testCliStruct](DefaultCliDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,18 +112,11 @@ func TestCliEmptyStringSlice(t *testing.T) {
 		BasicBool     []bool
 	}
 
-	var lots lotsOfArrays
-
 	os.Args = []string{
 		"dummy", "-confy-help",
 	}
-	o := &options{
-		cli: transientOptions{
-			delimiter: ".",
-		},
-	}
 
-	err := newCliLoader[lotsOfArrays](o).apply(&lots)
+	_, err := LoadCli[lotsOfArrays](DefaultCliDelimiter)
 	if err == nil {
 		t.Fail()
 	}
@@ -154,17 +132,6 @@ func TestCliHelperMethod(t *testing.T) {
 
 	os.Args = []string{
 		"dummy",
-	}
-	o := &options{
-		cli: transientOptions{
-			delimiter: ".",
-		},
-	}
-
-	var small Small
-	err := newCliLoader[Small](o).apply(&small)
-	if err != nil {
-		t.Fail()
 	}
 
 	expectedContents := []string{
@@ -183,7 +150,6 @@ func TestCliHelperMethod(t *testing.T) {
 
 func TestCliTransform(t *testing.T) {
 
-	var dummyConfig testCliStruct
 	os.Args = []string{
 		"dummyprogramname",
 		"-MARSHAL", "test marshalling",
@@ -193,14 +159,7 @@ func TestCliTransform(t *testing.T) {
 		"-COMPLEX_ARRAY", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	o := &options{
-		cli: transientOptions{
-			delimiter: ".",
-			transform: strings.ToUpper,
-		},
-	}
-
-	err := newCliLoader[testCliStruct](o).apply(&dummyConfig)
+	dummyConfig, err := LoadCliWithTransform[testCliStruct](DefaultCliDelimiter, strings.ToUpper)
 	if err != nil {
 		t.Fatal(err)
 	}

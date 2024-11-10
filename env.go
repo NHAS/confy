@@ -24,13 +24,18 @@ func LoadEnv[T any](delimiter string) (result T, err error) {
 		panic("LoadEnv(...) only supports configs of Struct type")
 	}
 
-	o := &options{
-		env: transientOptions{
-			delimiter: delimiter,
-		},
+	result, _, err = Config[T](FromEnvs(delimiter))
+
+	return
+}
+
+// LoadEnvWithTransform populates a configuration file T from env variables and uses the transform to change the name of the environment variable
+func LoadEnvWithTransform[T any](delimiter string, transform func(string) string) (result T, err error) {
+	if reflect.TypeOf(result).Kind() != reflect.Struct {
+		panic("LoadEnvWithTransform(...) only supports configs of Struct type")
 	}
 
-	err = newEnvLoader[T](o).apply(&result)
+	result, _, err = Config[T](FromEnvs(delimiter), WithEnvTransform(transform))
 
 	return
 }

@@ -1,9 +1,18 @@
 package confy
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+
+	level.Set(slog.LevelDebug)
+	code := m.Run()
+
+	os.Exit(code)
+}
 
 func TestConfigBasic(t *testing.T) {
 

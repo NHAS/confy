@@ -1,7 +1,6 @@
 package confy
 
 import (
-	"log/slog"
 	"os"
 	"reflect"
 	"strings"
@@ -9,29 +8,13 @@ import (
 	"time"
 )
 
-func TestMain(m *testing.M) {
-
-	level.Set(slog.LevelDebug)
-	code := m.Run()
-
-	os.Exit(code)
-}
-
 func TestEnvBasicTypes(t *testing.T) {
-
-	var dummyConfig testStruct
 
 	os.Setenv("thing", "helloworld")
 	os.Setenv("b_bool", "true")
-	os.Setenv("thonku_complex.Mff", "toaster")
+	os.Setenv("thonku_complex_Mff", "toaster")
 
-	o := &options{
-		env: transientOptions{
-			delimiter: ".",
-		},
-	}
-
-	err := newEnvLoader[testStruct](o).apply(&dummyConfig)
+	dummyConfig, err := LoadEnv[testStruct](DefaultENVDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,20 +35,13 @@ func TestEnvBasicTypes(t *testing.T) {
 
 func TestEnvComplexTypes(t *testing.T) {
 
-	var dummyConfig testCliStruct
 	os.Setenv("marshal", "test marshalling")
-	os.Setenv("thonku_complex.Mff", "innername:42")
+	os.Setenv("thonku_complex_Mff", "innername:42")
 	os.Setenv("my_boy", "2024-11-09T15:04:05Z")
 	os.Setenv("basic_array", "item1,item2,item3")
 	os.Setenv("complex_array", "text1,text2,text3")
 
-	o := &options{
-		env: transientOptions{
-			delimiter: ".",
-		},
-	}
-
-	err := newEnvLoader[testCliStruct](o).apply(&dummyConfig)
+	dummyConfig, err := LoadEnv[testCliStruct](DefaultENVDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,25 +91,14 @@ func TestEnvHelperMethod(t *testing.T) {
 	os.Args = []string{
 		"dummy",
 	}
-	o := &options{
-		cli: transientOptions{
-			delimiter: ".",
-		},
-	}
-
-	var small Small
-	err := newEnvLoader[Small](o).apply(&small)
-	if err != nil {
-		t.Fail()
-	}
 
 	expectedContents := []string{
 		"Thing",
 		"Nested",
-		"Nested.NestedVal",
+		"Nested_NestedVal",
 	}
 
-	vals := GetGeneratedCliFlags[Small](DefaultCliDelimiter)
+	vals := GetGeneratedEnv[Small](DefaultENVDelimiter)
 
 	if !reflect.DeepEqual(expectedContents, vals) {
 		t.Fatalf("expected %v got %v", expectedContents, vals)
@@ -143,21 +108,13 @@ func TestEnvHelperMethod(t *testing.T) {
 
 func TestEnvTransform(t *testing.T) {
 
-	var dummyConfig testCliStruct
 	os.Setenv("MARSHAL", "test marshalling")
-	os.Setenv("THONKU_COMPLEX.MFF", "innername:42")
+	os.Setenv("THONKU_COMPLEX_MFF", "innername:42")
 	os.Setenv("MY_BOY", "2024-11-09T15:04:05Z")
 	os.Setenv("BASIC_ARRAY", "item1,item2,item3")
 	os.Setenv("COMPLEX_ARRAY", "text1,text2,text3")
 
-	o := &options{
-		env: transientOptions{
-			delimiter: ".",
-			transform: strings.ToUpper,
-		},
-	}
-
-	err := newEnvLoader[testCliStruct](o).apply(&dummyConfig)
+	dummyConfig, err := LoadEnvWithTransform[testCliStruct](DefaultENVDelimiter, strings.ToUpper)
 	if err != nil {
 		t.Fatal(err)
 	}

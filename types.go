@@ -19,7 +19,7 @@ type preference string
 
 const (
 	cli        preference = "cli"
-	env        preference = "Env"
+	env        preference = "env"
 	configFile preference = "file"
 )
 

@@ -248,13 +248,18 @@ func LoadCli[T any](delimiter string) (result T, err error) {
 		panic("LoadCli(...) only supports configs of Struct type")
 	}
 
-	o := &options{
-		cli: transientOptions{
-			delimiter: delimiter,
-		},
+	result, _, err = Config[T](FromCli(delimiter))
+
+	return
+}
+
+// LoadCli populates a configuration file T from cli arguments and uses the transform to change the name of the cli flag
+func LoadCliWithTransform[T any](delimiter string, transform func(string) string) (result T, err error) {
+	if reflect.TypeOf(result).Kind() != reflect.Struct {
+		panic("LoadCli(...) only supports configs of Struct type")
 	}
 
-	err = newCliLoader[T](o).apply(&result)
+	result, _, err = Config[T](FromCli(delimiter), WithCliTransform(transform))
 
 	return
 }
