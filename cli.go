@@ -412,7 +412,7 @@ func (cp *ciParser[T]) apply(result *T) (somethingSet bool, err error) {
 
 		association, ok := flagAssociation[f.Name]
 		if !ok {
-			panic(fmt.Sprintf("%s should exist in associations map %+v", f.Name, flagAssociation))
+			return
 		}
 
 		v, _ := getField(result, association.path)
