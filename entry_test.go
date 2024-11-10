@@ -30,3 +30,28 @@ func TestConfigBasic(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestConfigurationNothingSet(t *testing.T) {
+	os.Args = []string{
+		"dummy",
+	}
+
+	_, _, err := Config[testStruct](Defaults("config", "config.yaml"))
+	if err == nil {
+		t.Fatal("should return that help was asked for")
+	}
+
+}
+
+func TestConfigurationHelp(t *testing.T) {
+	os.Args = []string{
+		"dummy", "-h",
+	}
+
+	_, _, err := Config[testStruct](Defaults("config", "config.yaml"))
+	if err == nil {
+		t.Fatal("should return that help was asked for")
+	}
+
+	t.Fail()
+}

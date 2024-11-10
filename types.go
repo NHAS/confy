@@ -1,9 +1,12 @@
 package confy
 
-import "math"
+import (
+	"errors"
+	"math"
+)
 
 type loader[T any] interface {
-	apply(current *T) error
+	apply(current *T) (bool, error)
 }
 
 type ConfigType string
@@ -36,3 +39,5 @@ const (
 )
 
 type Transform func(generated string) string
+
+var errFatal = errors.New("fatal confy error: ")

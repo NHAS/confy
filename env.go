@@ -73,7 +73,7 @@ func GetGeneratedEnvWithTransform[T any](delimiter string, transformFunc Transfo
 	return envs
 }
 
-func (ep *envParser[T]) apply(result *T) (err error) {
+func (ep *envParser[T]) apply(result *T) (somethingSet bool, err error) {
 
 	for _, field := range getFields(true, result) {
 		// Update GetGeneratedEnv if this changes
@@ -87,11 +87,12 @@ func (ep *envParser[T]) apply(result *T) (err error) {
 		logger.Info("ENV", "was_set", wasSet, envVariable, maskSensitive(value, field.tag))
 
 		if wasSet {
+			somethingSet = true
 			ep.setBasicFieldFromString(result, field.path, value)
 		}
 	}
 
-	return nil
+	return somethingSet, nil
 }
 
 func (ep *envParser[T]) setBasicFieldFromString(v interface{}, fieldPath []string, value string) {

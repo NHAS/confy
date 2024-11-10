@@ -21,6 +21,7 @@ type OptionFunc func(*options) error
 
 type configDataOptions struct {
 	strictParsing bool
+	required      bool
 
 	dataMethod func() (io.Reader, ConfigType, error)
 }
@@ -122,27 +123,43 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 		currentlySet: make(map[preference]bool),
 	}
 
-	for _, optFunc := range suppliedOptions {
-		err := optFunc(&o)
-		if err != nil {
-			return result, nil, err
-		}
-	}
-
-	if len(o.order) == 0 {
-		if err := Defaults("config", "config.json")(&o); err != nil {
-			return result, nil, err
-		}
-	}
-
 	orderLoadOpts := map[preference]loader[T]{
 		cli:        newCliLoader[T](&o),
 		env:        newEnvLoader[T](&o),
 		configFile: newConfigLoader[T](&o),
 	}
 
+	if len(o.order) == 0 {
+		if err := Defaults("config", "config.json")(&o); err != nil {
+			if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) {
+				orderLoadOpts[cli].apply(&result)
+			}
+
+			return result, nil, err
+		}
+	} else {
+
+		var errs []error
+		for _, optFunc := range suppliedOptions {
+			err := optFunc(&o)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		cErr := errors.Join(errs...)
+		if cErr != nil {
+			// special case, if cli is enabled print out the help from that too
+			if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) {
+				orderLoadOpts[cli].apply(&result)
+			}
+			return result, nil, cErr
+		}
+	}
+
 	logger.Info("Populating configuration in this order: ", slog.Any("order", o.order))
 
+	anythingWasSet := false
 	for _, p := range o.order {
 
 		f, ok := orderLoadOpts[p]
@@ -150,20 +167,31 @@ func Config[T any](suppliedOptions ...OptionFunc) (result T, warnings []error, e
 			panic("unknown preference option: " + p)
 		}
 
-		err := f.apply(&result)
+		somethingWasSet, err := f.apply(&result)
 		if err != nil {
+
+			if errors.Is(err, errFatal) {
+				return result, nil, err
+			}
+
 			if len(o.order) > 1 && !errors.Is(err, flag.ErrHelp) {
 				logger.Warn("parser issued warning", "parser", p, "err", err.Error())
 
 				warnings = append(warnings, err)
-			} else if errors.Is(err, flag.ErrHelp) && slices.Contains(o.order, cli) && p != cli {
-				err = orderLoadOpts[cli].apply(&result)
-				return result, nil, err
 			} else {
 				logger.Error("parser issued error", "parser", p, "err", err.Error())
 				return result, nil, err
 			}
 		}
+
+		if somethingWasSet {
+			anythingWasSet = true
+		}
+
+	}
+
+	if !anythingWasSet {
+		return result, warnings, fmt.Errorf("nothing was set in configuration from sources: %s", o.order)
 	}
 
 	return
@@ -188,21 +216,25 @@ func Defaults(cliFlag, defaultPath string) OptionFunc {
 	return func(c *options) error {
 
 		// Process in config file -> env -> cli order
+		errs := []error{}
 		err := FromConfigFileFlagPath(cliFlag, defaultPath, "config file path", Auto)(c)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
+
 		err = FromEnvs(DefaultENVDelimiter)(c)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+
 		}
 		err = FromCli(DefaultCliDelimiter)(c)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+
 		}
 		WithLogLevel(slog.LevelError)
 
-		return nil
+		return errors.Join(errs...)
 	}
 }
 
@@ -214,21 +246,23 @@ func DefaultsFromPath(path string) OptionFunc {
 	return func(c *options) error {
 
 		// Process in config file -> env -> cli order
+		errs := []error{}
+
 		err := FromConfigFile(path, Auto)(c)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 		err = FromEnvs(DefaultENVDelimiter)(c)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 		err = FromCli(DefaultCliDelimiter)(c)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 		WithLogLevel(slog.LevelError)
 
-		return nil
+		return errors.Join(errs...)
 	}
 }
 
@@ -394,8 +428,8 @@ func FromConfigFileFlagPath(cliFlagName, defaultPath, description string, config
 
 		configPath := commandLine.String(cliFlagName, defaultPath, description)
 		if err := commandLine.Parse(os.Args[1:]); err != nil {
-			if err == flag.ErrHelp {
-				commandLine.PrintDefaults()
+			if errors.Is(err, flag.ErrHelp) {
+
 				return flag.ErrHelp
 			}
 
@@ -413,6 +447,15 @@ func WithStrictParsing() OptionFunc {
 		c.config.strictParsing = true
 		return nil
 	}
+}
+
+// WithConfigRequired causes failure to load the configuration from file/bytes/url to become fatal rather than just warning
+func WithConfigRequired() OptionFunc {
+	return func(c *options) error {
+		c.config.required = true
+		return nil
+	}
+
 }
 
 // FromEnvs sets confy to automatically populate the configuration structure from environment variables

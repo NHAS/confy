@@ -82,19 +82,23 @@ func (cp *configParser[T]) setArray(targetArray, values reflect.Value) reflect.V
 	return result
 }
 
-func (cp *configParser[T]) setField(v interface{}, fieldPath []string, value reflect.Value) {
+func (cp *configParser[T]) setField(v interface{}, fieldPath []string, value reflect.Value) bool {
 	r := reflect.ValueOf(v).Elem()
 
+	somethingSet := false
 	for i, part := range fieldPath {
 		if i == len(fieldPath)-1 {
 			f := r.FieldByName(part)
 			if f.IsValid() && f.CanAddr() {
 				if f.Type().Kind() != reflect.Array && f.Type().Kind() != reflect.Slice {
+					somethingSet = true
+
 					f.Set(value)
 				} else {
 					// Due to the yaml parser being incredibly dumb, we have had to recursively go in to every struct
 					// and make sure it has a yaml tag if the type is complex
 					f.Set(cp.setArray(f, value))
+					somethingSet = true
 				}
 			} else {
 
@@ -110,6 +114,8 @@ func (cp *configParser[T]) setField(v interface{}, fieldPath []string, value ref
 			r = r.FieldByName(part)
 		}
 	}
+
+	return somethingSet
 }
 
 func (cp *configParser[T]) getAllTagNames(tag reflect.StructTag) (result []string) {
@@ -213,21 +219,24 @@ func newConfigLoader[T any](o *options) *configParser[T] {
 	}
 }
 
-func (cp *configParser[T]) apply(result *T) (err error) {
+func (cp *configParser[T]) apply(result *T) (somethingSet bool, err error) {
 	if cp.o.config.dataMethod == nil {
 		panic("No data method available for getting config data, this is a mistake")
 	}
 
 	clone, err := cp.cloneWithNewTags(result)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	logger.Info(fmt.Sprintf("constructed value (with auto added tags): %#v", clone))
 
 	configData, configType, err := cp.o.config.dataMethod()
 	if err != nil {
-		return err
+		if cp.o.config.required {
+			return false, fmt.Errorf("%w: %s", errFatal, err)
+		}
+		return false, err
 	}
 
 	type configDecoder interface {
@@ -253,12 +262,12 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 		}
 		decoder = tmlDec
 	default:
-		return errors.New("config type could not be determined")
+		return false, errors.New("config type could not be determined")
 	}
 
 	err = decoder.Decode(clone)
 	if err != nil {
-		return fmt.Errorf("failed to decode config: %s", err)
+		return false, fmt.Errorf("failed to decode config: %s", err)
 	}
 
 	fields := getFields(false, clone)
@@ -266,10 +275,12 @@ func (cp *configParser[T]) apply(result *T) (err error) {
 	for _, value := range fields {
 		logger.Info("setting field of config file", "path", strings.Join(value.path, "."), "value", value.value.String(), "tag", value.tag)
 
-		cp.setField(result, value.path, value.value)
+		if cp.setField(result, value.path, value.value) {
+			somethingSet = true
+		}
 	}
 
-	return nil
+	return somethingSet, nil
 }
 
 // CloneWithNewTags creates a new struct with modified tags, leaves it blank
