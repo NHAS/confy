@@ -216,9 +216,19 @@ func GetGeneratedCliFlags[T any](delimiter string) []string {
 		panic("GetGeneratedEnv(...) only supports configs of Struct type")
 	}
 
+	o := options{}
+	FromCli(delimiter)(&o)
+	cp := newCliLoader[T](&o)
+
 	var result []string
 	for _, field := range getFields(true, &a) {
-		result = append(result, strings.Join(resolvePath(&a, field.path), delimiter))
+
+		cliName, ok := determineVariableName(&a, cp.o.cli.delimiter, nil, field)
+		if !ok {
+			continue
+		}
+
+		result = append(result, cliName)
 	}
 
 	return result
@@ -311,11 +321,10 @@ func (cp *ciParser[T]) apply(result *T) (somethingSet bool, err error) {
 				field.value = field.value.Elem()
 			}
 
-			// if this changes update LoadCli
-			flagName := strings.Join(resolvePath(dummyCopy, field.path), cp.o.cli.delimiter)
-			if cp.o.cli.transform != nil {
-				flagName = cp.o.cli.transform(flagName)
-				logger.Info("using transform func on cli flag", "before_func", strings.Join(resolvePath(dummyCopy, field.path), cp.o.cli.delimiter), "after_func", flagName)
+			flagName, ok := determineVariableName(result, cp.o.cli.delimiter, cp.o.cli.transform, field)
+			if !ok {
+				// logging done in determine variable
+				continue
 			}
 
 			logger.Info("resolved confy path", "resolved_path", flagName, "path", strings.Join(field.path, cp.o.cli.delimiter))

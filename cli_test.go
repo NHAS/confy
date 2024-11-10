@@ -136,7 +136,6 @@ func TestCliHelperMethod(t *testing.T) {
 
 	expectedContents := []string{
 		"Thing",
-		"Nested",
 		"Nested.NestedVal",
 	}
 

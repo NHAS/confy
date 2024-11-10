@@ -94,7 +94,6 @@ func TestEnvHelperMethod(t *testing.T) {
 
 	expectedContents := []string{
 		"Thing",
-		"Nested",
 		"Nested_NestedVal",
 	}
 

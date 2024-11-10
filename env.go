@@ -47,9 +47,19 @@ func GetGeneratedEnv[T any](delimiter string) []string {
 		panic("GetGeneratedEnv(...) only supports configs of Struct type")
 	}
 
+	o := options{}
+	FromEnvs(delimiter)(&o)
+	ep := newEnvLoader[T](&o)
+
 	var result []string
 	for _, field := range getFields(true, &a) {
-		result = append(result, strings.Join(resolvePath(&a, field.path), delimiter))
+
+		envVariable, ok := determineVariableName(&a, ep.o.env.delimiter, nil, field)
+		if !ok {
+			continue
+		}
+
+		result = append(result, envVariable)
 	}
 
 	return result
@@ -76,34 +86,9 @@ func GetGeneratedEnvWithTransform[T any](delimiter string, transformFunc Transfo
 func (ep *envParser[T]) apply(result *T) (somethingSet bool, err error) {
 
 	for _, field := range getFields(true, result) {
-		// Update GetGeneratedEnv if this changes
-		envVariable := strings.Join(resolvePath(result, field.path), ep.o.env.delimiter)
-		if ep.o.env.transform != nil {
-			envVariable = ep.o.env.transform(envVariable)
-			logger.Info("using transform func on env variable", "before_func", strings.Join(resolvePath(result, field.path), ep.o.env.delimiter), "after_func", envVariable)
-		}
-
-		if field.value.Kind() == reflect.Struct {
-			current := field.value
-			_, ok := current.Addr().Interface().(encoding.TextUnmarshaler)
-			if !ok {
-				logger.Warn("type doesnt implement encoding.TextUnmarshaler skipping looking for an ENV variable for it", "path", strings.Join(field.path, ep.o.env.delimiter))
-				continue
-			}
-		}
-
-		if field.value.Kind() == reflect.Array || field.value.Kind() == reflect.Slice {
-			sliceContentType := field.value.Type().Elem()
-
-			switch sliceContentType.Kind() {
-			case reflect.String, reflect.Int, reflect.Int64, reflect.Float64, reflect.Bool:
-			default:
-				inter := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
-				if !reflect.PointerTo(sliceContentType).Implements(inter) {
-					logger.Warn("type inside of complex slice did not implement encoding.TextUnmarshaler", "path", strings.Join(field.path, ep.o.env.delimiter))
-					continue
-				}
-			}
+		envVariable, ok := determineVariableName(result, ep.o.env.delimiter, ep.o.env.transform, field)
+		if !ok {
+			continue
 		}
 
 		value, wasSet := os.LookupEnv(envVariable)

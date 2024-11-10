@@ -1,14 +1,13 @@
 package confy
 
 import (
-	"log/slog"
 	"os"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
 
-	level.Set(slog.LevelDebug)
+	level.Set(LoggingDisabled)
 	code := m.Run()
 
 	os.Exit(code)
