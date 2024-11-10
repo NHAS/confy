@@ -26,16 +26,21 @@ type configDataOptions struct {
 	dataMethod func() (io.Reader, ConfigType, error)
 }
 
-type transientOptions struct {
+type envOptions struct {
 	delimiter string
 	transform Transform
+}
+
+type cliOptions struct {
+	envOptions
+	commandLine *flag.FlagSet
 }
 
 type options struct {
 	config configDataOptions
 
-	cli transientOptions
-	env transientOptions
+	cli cliOptions
+	env envOptions
 
 	order        []preference
 	currentlySet map[preference]bool
@@ -423,21 +428,13 @@ func FromConfigURL(urlOpt string, configType ConfigType) OptionFunc {
 func FromConfigFileFlagPath(cliFlagName, defaultPath, description string, configType ConfigType) OptionFunc {
 	return func(c *options) error {
 
-		commandLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		commandLine.SetOutput(io.Discard)
+		if c.cli.commandLine == nil {
+			c.cli.commandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		}
 
-		configPath := commandLine.String(cliFlagName, defaultPath, description)
-		if err := commandLine.Parse(os.Args[1:]); err != nil {
+		configPath := c.cli.commandLine.String(cliFlagName, defaultPath, description)
+		if err := c.cli.commandLine.Parse(os.Args[1:]); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-
-				// This weirdness is because Parse will print out things if it doesnt recognise them
-				// as this section of the code has no knowledge of what structs are actually defined
-				// we want to only print help if asked for it
-				commandLine.SetOutput(os.Stdout)
-				fmt.Fprintf(os.Stdout, "Usage of %s:\n", os.Args[0])
-				commandLine.PrintDefaults()
-				commandLine.SetOutput(io.Discard)
-
 				return flag.ErrHelp
 			}
 
@@ -540,6 +537,11 @@ func WithEnvTransform(t Transform) OptionFunc {
 //	 To unmarshal very complex structs, the struct must implement encoding.TextUnmarshaler and encoding.TextMarshaler
 func FromCli(delimiter string) OptionFunc {
 	return func(c *options) error {
+
+		if c.cli.commandLine == nil {
+			c.cli.commandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		}
+
 		c.cli.delimiter = delimiter
 		c.order = append(c.order, cli)
 		return nil
