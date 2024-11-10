@@ -364,17 +364,17 @@ func (cp *configParser[T]) createModifiedType(t reflect.Type) reflect.Type {
 		var fieldMarshallingName string
 		confyInstruction, ok := field.Tag.Lookup(confyTag)
 		if ok {
-			parts := strings.Split(confyInstruction, ";")
-			if len(parts) > 0 {
-				fieldMarshallingName = parts[0]
-			}
-
 			logger.Info("field had 'confy:' tag", "struct", t.Name(), "field", field.Name, "tag_value", confyInstruction)
 
-			if confyTagsOnThisLevel[fieldMarshallingName] {
-				panic(fmt.Sprintf("duplicate confy:\"%s\" found on %s (type %s)", fieldMarshallingName, field.Name, field.Type))
+			parts := strings.Split(confyInstruction, ";")
+			if len(parts) > 0 && parts[0] != "" {
+				fieldMarshallingName = parts[0]
+				if confyTagsOnThisLevel[fieldMarshallingName] {
+					panic(fmt.Sprintf("duplicate confy:\"%s\" found on %s (type %s)", fieldMarshallingName, field.Name, field.Type))
+				}
+				confyTagsOnThisLevel[fieldMarshallingName] = true
 			}
-			confyTagsOnThisLevel[fieldMarshallingName] = true
+
 		} else {
 			logger.Info("field had NO 'confy:' tag", "struct", t.Name(), "field", field.Name, "all_tags", field.Tag)
 		}

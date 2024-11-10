@@ -113,7 +113,11 @@ func resolvePath(v interface{}, fieldPath []string) []string {
 
 		value, ok := ft.Tag.Lookup(confyTag)
 		if ok {
-			currentPath = value
+
+			parts := strings.Split(value, ";")
+			if len(parts) > 0 && parts[0] != "" {
+				currentPath = parts[0]
+			}
 		}
 
 		logger.Info("resolving path", "tags", ft.Tag, "had_confy_tag", ok, "current_path", fieldPath[:i+1])
