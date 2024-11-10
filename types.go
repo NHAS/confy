@@ -32,8 +32,10 @@ const (
 )
 
 const (
-	DefaultENVDelimiter = "_"
-	DefaultCliDelimiter = "."
+	// The default delimiter used for environment variable search
+	ENVDelimiter = "_"
+	// the default delimiter used for cli flag construction
+	CLIDelimiter = "."
 
 	LoggingDisabled = math.MaxInt
 )

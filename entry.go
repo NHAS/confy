@@ -226,12 +226,12 @@ func Defaults(cliFlag, defaultPath string) OptionFunc {
 			errs = append(errs, err)
 		}
 
-		err = FromEnvs(DefaultENVDelimiter)(c)
+		err = FromEnvs(ENVDelimiter)(c)
 		if err != nil {
 			errs = append(errs, err)
 
 		}
-		err = FromCli(DefaultCliDelimiter)(c)
+		err = FromCli(CLIDelimiter)(c)
 		if err != nil {
 			errs = append(errs, err)
 
@@ -256,11 +256,11 @@ func DefaultsFromPath(path string) OptionFunc {
 		if err != nil {
 			errs = append(errs, err)
 		}
-		err = FromEnvs(DefaultENVDelimiter)(c)
+		err = FromEnvs(ENVDelimiter)(c)
 		if err != nil {
 			errs = append(errs, err)
 		}
-		err = FromCli(DefaultCliDelimiter)(c)
+		err = FromCli(CLIDelimiter)(c)
 		if err != nil {
 			errs = append(errs, err)
 		}

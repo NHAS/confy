@@ -11,7 +11,7 @@ import (
 func TestCliBasicTypes(t *testing.T) {
 
 	os.Args = []string{"dummyprogramname", "-thing", "helloworld", "-b_bool", "-thonku_complex.Mff", "toaster"}
-	dummyConfig, err := LoadCli[testStruct](DefaultCliDelimiter)
+	dummyConfig, err := LoadCli[testStruct](CLIDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestCliComplexTypes(t *testing.T) {
 		"-complex_array", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	dummyConfig, err := LoadCli[testCliStruct](DefaultCliDelimiter)
+	dummyConfig, err := LoadCli[testCliStruct](CLIDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestCliEmptyStringSlice(t *testing.T) {
 		"dummy", "-confy-help",
 	}
 
-	_, err := LoadCli[lotsOfArrays](DefaultCliDelimiter)
+	_, err := LoadCli[lotsOfArrays](CLIDelimiter)
 	if err == nil {
 		t.Fail()
 	}
@@ -140,7 +140,7 @@ func TestCliHelperMethod(t *testing.T) {
 		"Nested.NestedVal",
 	}
 
-	vals := GetGeneratedCliFlags[Small](DefaultCliDelimiter)
+	vals := GetGeneratedCliFlags[Small](CLIDelimiter)
 
 	if !reflect.DeepEqual(expectedContents, vals) {
 		t.Fatalf("expected %v got %v", expectedContents, vals)
@@ -159,7 +159,7 @@ func TestCliTransform(t *testing.T) {
 		"-COMPLEX_ARRAY", "text1,text2,text3", // Example for ComplexArray (implementsTextUnmarshaler)
 	}
 
-	dummyConfig, err := LoadCliWithTransform[testCliStruct](DefaultCliDelimiter, strings.ToUpper)
+	dummyConfig, err := LoadCliWithTransform[testCliStruct](CLIDelimiter, strings.ToUpper)
 	if err != nil {
 		t.Fatal(err)
 	}

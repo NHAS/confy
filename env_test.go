@@ -14,7 +14,7 @@ func TestEnvBasicTypes(t *testing.T) {
 	os.Setenv("b_bool", "true")
 	os.Setenv("thonku_complex_Mff", "toaster")
 
-	dummyConfig, err := LoadEnv[testStruct](DefaultENVDelimiter)
+	dummyConfig, err := LoadEnv[testStruct](ENVDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestEnvComplexTypes(t *testing.T) {
 	os.Setenv("basic_array", "item1,item2,item3")
 	os.Setenv("complex_array", "text1,text2,text3")
 
-	dummyConfig, err := LoadEnv[testCliStruct](DefaultENVDelimiter)
+	dummyConfig, err := LoadEnv[testCliStruct](ENVDelimiter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestEnvHelperMethod(t *testing.T) {
 		"Nested_NestedVal",
 	}
 
-	vals := GetGeneratedEnv[Small](DefaultENVDelimiter)
+	vals := GetGeneratedEnv[Small](ENVDelimiter)
 
 	if !reflect.DeepEqual(expectedContents, vals) {
 		t.Fatalf("expected %v got %v", expectedContents, vals)
@@ -114,7 +114,7 @@ func TestEnvTransform(t *testing.T) {
 	os.Setenv("BASIC_ARRAY", "item1,item2,item3")
 	os.Setenv("COMPLEX_ARRAY", "text1,text2,text3")
 
-	dummyConfig, err := LoadEnvWithTransform[testCliStruct](DefaultENVDelimiter, strings.ToUpper)
+	dummyConfig, err := LoadEnvWithTransform[testCliStruct](ENVDelimiter, strings.ToUpper)
 	if err != nil {
 		t.Fatal(err)
 	}
